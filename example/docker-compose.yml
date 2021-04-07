@@ -1,0 +1,12 @@
+version: '3'
+services:
+  php:
+    image: php:fpm
+    ports:
+      - 9000:9000
+    volumes:
+      - .:/srv/www:ro
+  memcached:
+    image: memcached
+    ports:
+      - 11211:11211
