@@ -1,14 +1,43 @@
-caddy-mwcache
-========
+# caddy-mwcache
 
-### Prerequisites
+**⚠️ Work-in-progress**
+
+caddy-mwcache is a cache plugin for [MediaWiki].
+
+### Todo list
+
+- [x] Handle caddyfile directive
+- [ ] Store cache to the backend
+- [ ] Response using the cache
+- Backend support
+  - [ ] map (Golang type)
+  - [ ] [badger](https://github.com/dgraph-io/badger)
+  - [ ] [memcached](https://memcached.org/)
+- [ ] Handle PURGE request ([link](https://www.mediawiki.org/wiki/Manual:$wgCdnServers))
+- [ ] Don't cache authorized requests ([link](https://github.com/wikimedia/puppet/blob/120dff458fea24318bbcb31b457b5b7d113e66a9/modules/varnish/templates/misc-frontend.inc.vcl.erb#L36-L39))
+- [ ] Don't cache cookie requests ([link](https://github.com/wikimedia/puppet/blob/120dff458fea24318bbcb31b457b5b7d113e66a9/modules/varnish/templates/misc-frontend.inc.vcl.erb#L41-L49))
+- [ ] Distributed cache
+
+### Usage
+
+```caddyfile
+mwcache [<backend>]
+```
+
+- **backend** is either `map`, or `badger`. Default to `badger`.
+<!-- - **memcached_url** is a url for memcached backend. -->
+
+### Build
+
+Prerequisites:
 
 - Go 1.15
-- [xcaddy](https://github.com/caddyserver/xcaddy)
+- [xcaddy]
 
-### Instructions
+Prerequisites:
 
-#### Build
+- Go 1.15
+- [xcaddy]
 
 ```bash
 xcaddy build
@@ -16,25 +45,31 @@ xcaddy build
 # ./caddy is the output
 ```
 
-#### Development
+### Development
 
 Prerequisites:
 
-- [docker-compose](https://docs.docker.com/compose/)
+- Go 1.15
+- [xcaddy]
+- [docker-compose]
 
 ```bash
-# Run a php-fpm server
+# Start a php-fpm server
 docker-compose --project-directory example up --detach
-# Run a web server
+# Start a web server
 xcaddy start --config example/Caddyfile
 
 # Test
-curl -so /dev/null -w "%{time_total}\n" 127.0.0.1:2015
+curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015'
 
 # Reload Caddyfile
 xcaddy reload --config example/Caddyfile
 
-# End
+# Stop
 docker-compose --project-directory example down
 xcaddy stop
 ```
+
+[mediawiki]: https://www.mediawiki.org
+[xcaddy]: https://github.com/caddyserver/xcaddy
+[docker-compose]: (https://docs.docker.com/compose/)

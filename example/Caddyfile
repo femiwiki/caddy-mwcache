@@ -6,4 +6,4 @@ root * /srv/www
 rewrite * /index.php
 php_fastcgi 127.0.0.1:9000
 
-mwcache stdout
+mwcache
