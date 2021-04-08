@@ -1,17 +1,17 @@
-package wmcache
+package mwcache
 
 import "github.com/caddyserver/caddy/v2"
 
 func init() {
-	caddy.RegisterModule(WMCache{})
+	caddy.RegisterModule(MWCache{})
 }
 
-type WMCache struct {
+type MWCache struct {
 }
 
-func (WMCache) CaddyModule() caddy.ModuleInfo {
+func (MWCache) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "http.handlers.wmcache",
-		New: func() caddy.Module { return new(WMCache) },
+		ID:  "http.handlers.mwcache",
+		New: func() caddy.Module { return new(MWCache) },
 	}
 }

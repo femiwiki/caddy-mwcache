@@ -1,4 +1,4 @@
-caddy-wmcache
+caddy-mwcache
 ========
 
 ### Prerequisites
