@@ -66,7 +66,8 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 			return next.ServeHTTP(w, r)
 		}
 		// TODO cache
-		val, err := backend.get(createKey(r))
+		key := createKey(r)
+		val, err := backend.get(key)
 		if err != nil {
 			if err == ErrKeyNotFound {
 				// TODO serve and cache

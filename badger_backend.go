@@ -31,7 +31,7 @@ func (m *BadgerBackend) get(key string) (string, error) {
 	return "", ErrKeyNotFound
 }
 
-func (m *BadgerBackend) set(key string, value string) error {
+func (m *BadgerBackend) put(key string, value string) error {
 	db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true))
 	if err != nil {
 		return err

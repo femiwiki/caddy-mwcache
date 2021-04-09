@@ -10,5 +10,5 @@ var (
 
 type Backend interface {
 	get(key string) (string, error)
-	set(key string, value string) error
+	put(key string, value string) error
 }
