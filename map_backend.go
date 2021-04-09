@@ -15,9 +15,9 @@ func (m *MapBackend) get(key string) (string, error) {
 	return "", ErrKeyNotFound
 }
 
-func (m *MapBackend) put(key string, value string) error {
+func (m *MapBackend) put(key string, val string) error {
 	// TODO remove oldest cache if full
-	m.db[key] = value
+	m.db[key] = val
 	return nil
 }
 
