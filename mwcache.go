@@ -71,6 +71,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
 		key := createKey(r)
 		backend.delete(key)
+		h.logger.Info("purged for key" + key)
 		return nil
 	case http.MethodHead:
 		return h.serveUsingCacheIfAvaliable(w, r, next)
