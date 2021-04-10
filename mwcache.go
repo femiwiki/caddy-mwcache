@@ -126,7 +126,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		c := header.Get("Cache-Control")
-		if match, err := regexp.Match(c, []byte(`private|no-cache|no-store`)); err == nil && match {
+		if match, err := regexp.Match(`(private|no-cache|no-store)`, []byte(c)); err == nil && match {
 			return false
 		}
 		if header.Get("Set-Cookie") != "" {
