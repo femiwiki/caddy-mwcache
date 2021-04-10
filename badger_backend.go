@@ -60,6 +60,29 @@ func (m *BadgerBackend) put(key string, val string) error {
 	return nil
 }
 
+func (m *BadgerBackend) delete(key string) error {
+	if m.db == nil {
+		var err error
+		m.db, err = badger.Open(badger.DefaultOptions("").WithInMemory(true))
+		if err != nil {
+			return err
+		}
+		// TODO research whither explicitly closing is required
+		// defer m.db.Close()
+	}
+
+	txn := m.db.NewTransaction(true)
+	defer txn.Discard()
+
+	if err := txn.Delete([]byte(key)); err != nil {
+		return err
+	}
+	if err := txn.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Interface guards
 var (
 	_ Backend = (*BadgerBackend)(nil)

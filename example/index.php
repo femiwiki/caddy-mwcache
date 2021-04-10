@@ -1,3 +1,3 @@
 <?php
 sleep( 1 );
-echo 'Hello, World';
+echo "Hello, World\n";

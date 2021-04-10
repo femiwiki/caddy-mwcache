@@ -10,9 +10,9 @@ import (
 func TestDirectives(t *testing.T) {
 	h := httpcaddyfile.Helper{
 		Dispenser: caddyfile.NewTestDispenser(`
-		localhost:2015 {
-			mwcache
-		}`),
+		localhost:2015
+		mwcache
+		`),
 	}
 	_, err := parseCaddyfile(h)
 	if err != nil {
@@ -21,13 +21,23 @@ func TestDirectives(t *testing.T) {
 
 	h = httpcaddyfile.Helper{
 		Dispenser: caddyfile.NewTestDispenser(`
-		localhost:2015 {
-			mwcache foo
-		}`),
+		localhost:2015
+		mwcache map
+		`),
+	}
+	_, err = parseCaddyfile(h)
+	if err != nil {
+		t.Errorf("error = %v", err)
+	}
+
+	h = httpcaddyfile.Helper{
+		Dispenser: caddyfile.NewTestDispenser(`
+		localhost:2015
+		mwcache foo
+		`),
 	}
 	_, err = parseCaddyfile(h)
 	if err == nil {
 		t.Errorf("Error should be thrown")
 	}
-
 }

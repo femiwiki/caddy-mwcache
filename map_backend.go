@@ -21,6 +21,11 @@ func (m *MapBackend) put(key string, val string) error {
 	return nil
 }
 
+func (m *MapBackend) delete(key string) error {
+	delete(m.db, key)
+	return nil
+}
+
 // Interface guards
 var (
 	_ Backend = (*MapBackend)(nil)

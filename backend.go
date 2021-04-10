@@ -11,4 +11,5 @@ var (
 type Backend interface {
 	get(key string) (string, error)
 	put(key string, val string) error
+	delete(key string) error
 }
