@@ -2,6 +2,7 @@ package mwcache
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,13 @@ var (
 	backend Backend
 	config  Config
 )
+
+type metadata struct {
+	Header http.Header
+	Status int
+}
+
+var errUncacheable = fmt.Errorf("uncacheable")
 
 func init() {
 	caddy.RegisterModule(Handler{})
@@ -90,6 +98,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	}
 	// Cache hit, response with cache
 	h.logger.Info("cache hit for " + key)
+
 	pool := sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
@@ -99,15 +108,11 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	buf.Reset()
 	defer pool.Put(buf)
 	buf.Write([]byte(val))
-	_, err = io.Copy(w, buf)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return h.writeResponse(w, buf)
 }
 
 func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	// Fetch upstream response
 	pool := sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
@@ -116,23 +121,62 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	buf := pool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer pool.Put(buf)
+
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
+		// Recode header to buf
+		err := gob.NewEncoder(buf).Encode(metadata{
+			Header: header,
+			Status: status,
+		})
+		if err != nil {
+			h.logger.Error("", zap.Error(err))
+			return false
+		}
+
+		// Body is recoded implicitly by the recoder
 		return true
 	})
-	next.ServeHTTP(rec, r)
-	// Cache
-	if rec.Status() != http.StatusMovedPermanently && rec.Status() != http.StatusFound {
-		h.logger.Info("put cache for " + key)
-		content := string(buf.Bytes())
-		if err := backend.put(key, content); err != nil {
-			return err
-		}
+
+	// Fetch upstream response
+	if err := next.ServeHTTP(rec, r); err != nil {
+		return err
 	}
-	return rec.WriteResponse()
+	if !rec.Buffered() || buf.Len() == 0 {
+		return errUncacheable
+	}
+
+	// Cache recoded buf to the backend
+	h.logger.Info("put cache for " + key)
+	response := string(buf.Bytes())
+	if err := backend.put(key, response); err != nil {
+		return err
+	}
+
+	return h.writeResponse(w, buf)
+}
+
+func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
+	// Write header
+	var meta metadata
+	if err := gob.NewDecoder(buf).Decode(&meta); err != nil {
+		return err
+	}
+	header := w.Header()
+	for k, v := range meta.Header {
+		header[k] = v
+	}
+	w.WriteHeader(meta.Status)
+
+	// Write body
+	if _, err := io.Copy(w, buf); err != nil {
+		return err
+	}
+	return nil
 }
 
 func createKey(r *http.Request) string {
-	// Do not use Fragment
+	// TODO use hash function?
+	// Fragment is not used
 	var key string
 	if r.URL.Scheme != "" {
 		key += r.URL.Scheme + "://"
@@ -155,6 +199,8 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
+	// TODO check Cookie for session or token
+	// TODO check Cache-Control header
 	if key := createKey(r); key == "" {
 		return false
 	}
