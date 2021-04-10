@@ -27,7 +27,6 @@ mwcache [<backend>]
 ```
 
 - **backend** is either `map`, or `badger`. Default to `badger`.
-<!-- - **memcached_url** is a url for memcached backend. -->
 
 ### Build
 

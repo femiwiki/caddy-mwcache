@@ -6,7 +6,3 @@ services:
       - 9000:9000
     volumes:
       - .:/var/www/html:ro
-  memcached:
-    image: memcached
-    ports:
-      - 11211:11211

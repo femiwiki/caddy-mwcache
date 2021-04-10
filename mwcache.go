@@ -31,7 +31,6 @@ type Handler struct {
 
 type Config struct {
 	Backend string `json:"backend,omitempty"`
-	// MemcachedUrl string `json:"memcached_url,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
