@@ -58,7 +58,7 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	switch r.Method {
 	case "PURGE":
-		// TODO check ip
+		// TODO check ip against purge acl
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
 		key := createKey(r)
 		backend.delete(key)
@@ -165,6 +165,7 @@ func requestIsCacheable(r *http.Request) bool {
 //
 //     mwcache [<backend>]
 //
+// TODO: Add purge_acl directive
 func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	if config == (Config{}) {
 		config = Config{}

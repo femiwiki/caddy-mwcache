@@ -11,6 +11,7 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 - [x] Response using the cache
 - [x] Do not cache redirects
 - [ ] Handle rewrite directive
+- [ ] Provide purge acl directive
 - Backend support
   - [x] map (Golang type)
   - [x] [badger](https://github.com/dgraph-io/badger)
