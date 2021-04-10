@@ -176,21 +176,7 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
 
 func createKey(r *http.Request) string {
 	// TODO use hash function?
-	// Fragment is not used
-	var key string
-	if r.URL.Scheme != "" {
-		key += r.URL.Scheme + "://"
-	}
-	if r.URL.Host != "" {
-		key += r.URL.Host
-	}
-	if r.URL.Path != "" {
-		key += r.URL.Path
-	}
-	if r.URL.RawQuery != "" {
-		key += "?" + r.URL.RawQuery
-	}
-	return key
+	return r.URL.String()
 }
 
 // NOTE: requests to RESTBase is not reach this module because of reverse_proxy has higher order

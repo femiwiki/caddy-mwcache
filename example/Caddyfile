@@ -1,9 +1,9 @@
 {
-	order mwcache before respond
+	order mwcache before rewrite
 }
 :2015
 root * /var/www/html
-rewrite / /index.php
+rewrite /w/* /index.php
 php_fastcgi 127.0.0.1:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
