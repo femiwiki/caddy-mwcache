@@ -2,12 +2,12 @@
 	order mwcache before respond
 }
 :2015
-root * /srv/www
+root * /var/www/html
 rewrite / /index.php
 php_fastcgi 127.0.0.1:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
-mwcache map
+mwcache
 log {
 	output stdout
 	level info

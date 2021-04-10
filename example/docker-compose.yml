@@ -5,7 +5,7 @@ services:
     ports:
       - 9000:9000
     volumes:
-      - .:/srv/www:ro
+      - .:/var/www/html:ro
   memcached:
     image: memcached
     ports:

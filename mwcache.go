@@ -121,17 +121,18 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return true
 	})
 	next.ServeHTTP(rec, r)
-	res := string(buf.Bytes())
 	// Cache
-	if err := backend.put(key, res); err != nil {
-		return err
+	if rec.Status() != http.StatusMovedPermanently && rec.Status() != http.StatusFound {
+		h.logger.Info("put cache for " + key)
+		content := string(buf.Bytes())
+		if err := backend.put(key, content); err != nil {
+			return err
+		}
 	}
-	h.logger.Info("put cache for " + key)
 	return rec.WriteResponse()
 }
 
 func createKey(r *http.Request) string {
-	fmt.Println(r.URL.String())
 	// Do not use Fragment
 	var key string
 	if r.URL.Scheme != "" {
