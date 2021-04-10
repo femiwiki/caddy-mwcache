@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sync"
 
 	"github.com/caddyserver/caddy/v2"
@@ -185,7 +186,12 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
-	// TODO check Cookie for session or token
+	// don't cache request with session or token cookie
+	// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
+	cookie := r.Header.Get("Cookie")
+	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err != nil && match {
+		return false
+	}
 	// TODO check Cache-Control header
 	if key := createKey(r); key == "" {
 		return false
