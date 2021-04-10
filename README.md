@@ -30,6 +30,13 @@ mwcache [<backend>]
 
 - **backend** is either `map`, or `badger`. Default to `badger`.
 
+You must add the next lines your [LocalSettings.php].
+
+```php
+$wgUseCdn = true;
+$wgCdnServers = '127.0.0.1';
+```
+
 ### Build
 
 Prerequisites:
@@ -75,4 +82,5 @@ xcaddy stop
 
 [mediawiki]: https://www.mediawiki.org
 [xcaddy]: https://github.com/caddyserver/xcaddy
-[docker-compose]: (https://docs.docker.com/compose/)
+[docker-compose]: https://docs.docker.com/compose/
+[localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php
