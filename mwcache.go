@@ -125,6 +125,13 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	defer pool.Put(buf)
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
+		c := header.Get("Cache-Control")
+		if match, err := regexp.Match(c, []byte(`private|no-cache|no-store`)); err == nil && match {
+			return false
+		}
+		if header.Get("Set-Cookie") != "" {
+			return false
+		}
 		// Recode header to buf
 		err := gob.NewEncoder(buf).Encode(metadata{
 			Header: header,
@@ -190,7 +197,7 @@ func requestIsCacheable(r *http.Request) bool {
 	// don't cache request with session or token cookie
 	// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
 	cookie := r.Header.Get("Cookie")
-	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err != nil && match {
+	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err == nil && match {
 		return false
 	}
 	// TODO check Cache-Control header
