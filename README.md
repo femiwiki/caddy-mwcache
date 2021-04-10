@@ -7,14 +7,16 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 ### Todo list
 
 - [x] Handle caddyfile directive
-- [ ] Store cache to the backend
-- [ ] Response using the cache
+- [x] Store cache to the backend
+- [x] Response using the cache
+- [x] Do not cache redirects
+- [ ] Handle rewrite directive
 - Backend support
-  - [ ] map (Golang type)
-  - [ ] [badger](https://github.com/dgraph-io/badger)
+  - [x] map (Golang type)
+  - [x] [badger](https://github.com/dgraph-io/badger)
   - [ ] [memcached](https://memcached.org/)
-- [ ] Handle PURGE request ([link](https://www.mediawiki.org/wiki/Manual:$wgCdnServers))
-- [ ] Don't cache authorized requests ([link](https://github.com/wikimedia/puppet/blob/120dff458fea24318bbcb31b457b5b7d113e66a9/modules/varnish/templates/misc-frontend.inc.vcl.erb#L36-L39))
+- [x] Handle PURGE request ([link](https://www.mediawiki.org/wiki/Manual:$wgCdnServers))
+- [x] Don't cache authorized requests ([link](https://github.com/wikimedia/puppet/blob/120dff458fea24318bbcb31b457b5b7d113e66a9/modules/varnish/templates/misc-frontend.inc.vcl.erb#L36-L39))
 - [ ] Don't cache cookie requests ([link](https://github.com/wikimedia/puppet/blob/120dff458fea24318bbcb31b457b5b7d113e66a9/modules/varnish/templates/misc-frontend.inc.vcl.erb#L41-L49))
 - [ ] Distributed cache
 
