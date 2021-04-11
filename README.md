@@ -24,6 +24,14 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 
 ### Usage
 
+**NOTE**: You cannot use this plugin if the next conditions match:
+
+- MediaWiki < v1.36
+- php-curl extension installed
+- curl >= v7.62
+
+See https://phabricator.wikimedia.org/T264735 for further details.
+
 ```caddyfile
 mwcache [<backend>]
 ```
