@@ -5,8 +5,10 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/caddyserver/caddy/v2"
@@ -19,7 +21,7 @@ import (
 // backend and config are global to preserve the cache between reloads
 var (
 	backend Backend
-	config  Config
+	config  *Config
 )
 
 type metadata struct {
@@ -36,10 +38,12 @@ func init() {
 
 type Handler struct {
 	logger *zap.Logger
+	config Config
 }
 
 type Config struct {
-	Backend string `json:"backend,omitempty"`
+	Backend  string   `json:"backend,omitempty"`
+	PurgeAcl []string `json:"purge_acl,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -63,12 +67,42 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 	return nil
 }
 
+func CIDRContainsIP(cidr string, needleIP string) bool {
+	if strings.Contains(needleIP, ":") {
+		needleIP = strings.Split(needleIP, ":")[0]
+	}
+
+	haystickIP, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return false
+	}
+	if haystickIP != nil && haystickIP.Equal(net.ParseIP(needleIP)) {
+		return true
+	}
+	return ipNet.Contains(net.ParseIP(needleIP))
+}
+
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	switch r.Method {
 	case "PURGE":
-		// TODO check ip against purge acl
+		// Check Domain against purge acl
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
+		acl := config.PurgeAcl
+		found := false
+		h.logger.Info("remote :" + r.RemoteAddr)
+		for _, cidr := range acl {
+			if CIDRContainsIP(cidr, r.RemoteAddr) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			w.WriteHeader(http.StatusNoContent)
+			w.Write([]byte("Domain not cached here"))
+			return nil
+		}
 		key := createKey(r)
 		backend.delete(key)
 		h.logger.Info("purged for key " + key)
@@ -210,28 +244,57 @@ func requestIsCacheable(r *http.Request) bool {
 
 // UnmarshalCaddyfile implements caddyfile.Unmarshaler. Syntax:
 //
-//     mwcache [<backend>]
+//	mwcache [<backend>]
+//
+//	mwcache {
+//		[<backend>]
+//		[purge_acl <purge_acl_address>]
+//		[purge_acl {
+//			<purge_acl_address>
+//			[<purge_acl_address_2>]
+//		}]
+//	}
 //
 // TODO: Add purge_acl directive
 func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	if config == (Config{}) {
-		config = Config{}
+	h.config = Config{
+		Backend:  "badger",
+		PurgeAcl: []string{"127.0.0.1"},
 	}
+	config = &h.config
 	for d.Next() {
-		args := d.RemainingArgs()
-		switch len(args) {
-		case 0:
-			config.Backend = "badger"
-		case 1:
-			switch args[0] {
+		if len(d.RemainingArgs()) == 1 {
+			switch d.Val() {
 			case "map":
+				config.Backend = d.Val()
 			case "badger":
+				// Use default
 			default:
 				return d.ArgErr()
 			}
-			config.Backend = args[0]
-		default:
-			return d.ArgErr()
+		}
+
+		for d.NextBlock(0) {
+			switch d.Val() {
+			case "map":
+				config.Backend = d.Val()
+			case "badger":
+				// Use default
+			case "purge_acl":
+				// TODO throw error when an empty block is given
+				config.PurgeAcl = nil
+				if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
+					config.PurgeAcl = []string{d.Val()}
+				} else {
+					for d.NextBlock(1) {
+						config.PurgeAcl = append(config.PurgeAcl, d.Val())
+					}
+				}
+
+				// TODO
+			default:
+				return d.ArgErr()
+			}
 		}
 	}
 	return nil
@@ -239,8 +302,12 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 // Validate implements caddy.Validator.
 func (h *Handler) Validate() error {
+	h.config = *config
 	if config.Backend == "" {
 		return fmt.Errorf("no backend")
+	}
+	if config.PurgeAcl == nil {
+		return fmt.Errorf("no purge acl")
 	}
 	return nil
 }

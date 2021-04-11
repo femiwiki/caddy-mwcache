@@ -7,7 +7,10 @@ rewrite /w/* /index.php
 php_fastcgi 127.0.0.1:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
-mwcache
+mwcache {
+	purge_acl 127.0.0.1
+}
+
 log {
 	output stdout
 	level info

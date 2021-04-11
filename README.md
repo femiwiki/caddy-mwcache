@@ -12,7 +12,8 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 - [x] Do not cache redirects
 - [x] Cache headers
 - [x] Don't disturb logged-in activities
-- [ ] Provide purge acl directive
+- [x] Provide purge acl directive
+- [ ] Support `Cache-Control` haeader directives (s-maxage and max-age etc) and `Expires:` header
 - Backend support
   - [x] map (Golang type)
   - [x] [badger](https://github.com/dgraph-io/badger)
@@ -33,10 +34,17 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 See https://phabricator.wikimedia.org/T264735 for further details.
 
 ```caddyfile
-mwcache [<backend>]
+mwcache {
+  [<backend>]
+  [purge_acl 127.0.0.1]
+  [purge_acl {
+    <address1>
+    <...>
+  }]
 ```
 
 - **backend** is either `map`, or `badger`. Default to `badger`.
+- **purge_acl** is either a list of acl or a ip address that are allowed to request to purge cache.
 
 You must add the next lines your [LocalSettings.php].
 
