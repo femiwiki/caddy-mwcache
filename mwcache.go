@@ -174,10 +174,10 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
-		if status < 200 || status >= 300 {
+		c := header.Get("Cache-Control")
+		if (status < 200 || status >= 300) && !strings.Contains(c, "s-maxage") {
 			return false
 		}
-		c := header.Get("Cache-Control")
 		if match, err := regexp.Match(`(private|no-cache|no-store)`, []byte(c)); err == nil && match {
 			return false
 		}
