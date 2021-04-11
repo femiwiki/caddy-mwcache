@@ -8,8 +8,10 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -30,6 +32,9 @@ type metadata struct {
 }
 
 var errUncacheable = fmt.Errorf("uncacheable")
+var errStale = fmt.Errorf("stale")
+
+const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
 func init() {
 	caddy.RegisterModule(Handler{})
@@ -145,7 +150,17 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	defer pool.Put(buf)
 	buf.Write([]byte(val))
 
-	return h.writeResponse(w, buf)
+	if err := h.writeResponse(w, buf, true); err != nil {
+		if err == errStale {
+			h.logger.Info("cache for " + key + " is stale, drop")
+			if err := h.serveAndCache(key, w, r, next); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
@@ -165,6 +180,9 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		}
 		if header.Get("Set-Cookie") != "" {
 			return false
+		}
+		if header.Get("Date") == "" {
+			header.Set("Date", time.Now().UTC().Format(timeFormat))
 		}
 		// Recode header to buf
 		err := gob.NewEncoder(buf).Encode(metadata{
@@ -195,10 +213,10 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
-	return h.writeResponse(w, buf)
+	return h.writeResponse(w, buf, false)
 }
 
-func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
+func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCache bool) error {
 	// Write header
 	var meta metadata
 	if err := gob.NewDecoder(buf).Decode(&meta); err != nil {
@@ -208,6 +226,10 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
 	for k, v := range meta.Header {
 		header[k] = v
 	}
+
+	if fromCache && !h.isFresh(header) {
+		return errStale
+	}
 	w.WriteHeader(meta.Status)
 
 	// Write body
@@ -215,6 +237,52 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
 		return err
 	}
 	return nil
+}
+
+// isFresh investments a request that has the given header is fresh.
+// Targets only mediawiki-specific directives defined below files:
+//	- https://github.com/wikimedia/mediawiki/blob/master/includes/OutputPage.php
+//	- https://github.com/wikimedia/mediawiki/blob/master/includes/api/ApiMain.php
+//	- https://github.com/wikimedia/mediawiki/blob/master/includes/AjaxResponse.php
+func (h Handler) isFresh(header http.Header) bool {
+	var maxAgeInt uint64
+	var err error
+	var date time.Time
+
+	cc := header.Get("Cache-Control")
+	if cc == "" {
+		// Cache-Control directive is not provided.
+		h.logger.Info("stored cache has no Cache-Control header")
+		return true
+	}
+	re := regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
+	submatch := re.FindStringSubmatch(cc)
+	if len(submatch) != 2 {
+		h.logger.Info("Cache-Control has no s-maxage")
+		return true
+	}
+	maxAgeStr := submatch[1]
+	if maxAgeInt, err = strconv.ParseUint(maxAgeStr, 10, 32); err != nil {
+		h.logger.Info("parsing " + maxAgeStr + " failed")
+		return true
+	}
+
+	dateHeader := header.Get("Date")
+	if dateHeader == "" {
+		h.logger.Info("Date header is missing")
+		return true
+	}
+
+	date, err = time.Parse(timeFormat, dateHeader)
+	if err != nil {
+		h.logger.Info("parsing " + dateHeader + " failed")
+		return true
+	}
+	date = date.UTC()
+	now := time.Now().UTC()
+
+	maxAge := time.Duration(maxAgeInt)
+	return (date.Add(time.Second * maxAge)).After(now)
 }
 
 func createKey(r *http.Request) string {
@@ -235,7 +303,6 @@ func requestIsCacheable(r *http.Request) bool {
 	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err == nil && match {
 		return false
 	}
-	// TODO check Cache-Control header
 	if key := createKey(r); key == "" {
 		return false
 	}
@@ -255,7 +322,6 @@ func requestIsCacheable(r *http.Request) bool {
 //		}]
 //	}
 //
-// TODO: Add purge_acl directive
 func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	h.config = Config{
 		Backend:  "badger",
@@ -290,8 +356,6 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 						config.PurgeAcl = append(config.PurgeAcl, d.Val())
 					}
 				}
-
-				// TODO
 			default:
 				return d.ArgErr()
 			}

@@ -13,9 +13,9 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 - [x] Cache headers
 - [x] Don't disturb logged-in activities
 - [x] Provide purge acl directive
-- [ ] Support `Cache-Control` haeader directives (s-maxage and max-age etc) and `Expires:` header
+- [x] Support `Cache-Control` header `s-maxage` directives
 - Backend support
-  - [x] map (Golang type)
+  - [ ] map (Golang type) - set memory limit
   - [x] [badger](https://github.com/dgraph-io/badger)
   - [ ] [memcached](https://memcached.org/)
 - [x] Handle PURGE request ([link](https://www.mediawiki.org/wiki/Manual:$wgCdnServers))
