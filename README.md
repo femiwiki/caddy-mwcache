@@ -1,4 +1,4 @@
-# caddy-mwcache
+# caddy-mwcache [![Github checks status]][github checks link] [![codecov.io status]][codecov.io link]
 
 **⚠️ Work-in-progress**
 
@@ -96,6 +96,10 @@ docker-compose --project-directory example down
 xcaddy stop
 ```
 
+[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache
+[github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
+[codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
+[codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
 [mediawiki]: https://www.mediawiki.org
 [xcaddy]: https://github.com/caddyserver/xcaddy
 [docker-compose]: https://docs.docker.com/compose/
