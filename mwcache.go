@@ -71,7 +71,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
 		key := createKey(r)
 		backend.delete(key)
-		h.logger.Info("purged for key" + key)
+		h.logger.Info("purged for key " + key)
 		return nil
 	case http.MethodHead:
 		return h.serveUsingCacheIfAvaliable(w, r, next)
@@ -185,7 +185,8 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer) error {
 
 func createKey(r *http.Request) string {
 	// TODO use hash function?
-	return r.URL.String()
+	// Use URL.RequestURI() instead of URL.String() to truncate domain.
+	return r.URL.RequestURI()
 }
 
 // NOTE: requests to RESTBase is not reach this module because of reverse_proxy has higher order
