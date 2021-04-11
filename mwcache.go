@@ -95,7 +95,6 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
 		acl := config.PurgeAcl
 		found := false
-		h.logger.Info("remote :" + r.RemoteAddr)
 		for _, cidr := range acl {
 			if CIDRContainsIP(cidr, r.RemoteAddr) {
 				found = true
@@ -217,18 +216,19 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 }
 
 func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCache bool) error {
-	// Write header
+	header := w.Header()
+
 	var meta metadata
 	if err := gob.NewDecoder(buf).Decode(&meta); err != nil {
 		return err
 	}
-	header := w.Header()
-	for k, v := range meta.Header {
-		header[k] = v
+	if fromCache && !h.isFresh(meta.Header) {
+		return errStale
 	}
 
-	if fromCache && !h.isFresh(header) {
-		return errStale
+	// Write header
+	for k, v := range meta.Header {
+		header[k] = v
 	}
 	w.WriteHeader(meta.Status)
 
