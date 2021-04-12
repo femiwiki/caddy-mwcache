@@ -109,7 +109,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		}
 
 		if !found {
-			h.logger.Info("purging from " + r.RemoteAddr + "is blocked")
+			h.logger.Info("purging from " + r.RemoteAddr + " is blocked")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			w.Write([]byte("Method not allowed"))
 			return nil
@@ -184,7 +184,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
 		c := header.Get("Cache-Control")
-		if (status < 200 || status >= 300) && !strings.Contains(c, "s-maxage") {
+		if c == "" {
 			return false
 		}
 		if match, err := regexp.Match(`(private|no-cache|no-store)`, []byte(c)); err == nil && match {
