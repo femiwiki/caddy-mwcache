@@ -103,13 +103,15 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		}
 
 		if !found {
-			w.WriteHeader(http.StatusNoContent)
-			w.Write([]byte("Domain not cached here"))
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			w.Write([]byte("Method not allowed"))
 			return nil
 		}
 		key := createKey(r)
 		backend.delete(key)
 		h.logger.Info("purged for key " + key)
+		w.WriteHeader(http.StatusNoContent)
+		w.Write([]byte("Purged"))
 		return nil
 	case http.MethodHead:
 		return h.serveUsingCacheIfAvaliable(w, r, next)
