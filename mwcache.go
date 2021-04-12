@@ -72,19 +72,25 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func CIDRContainsIP(cidr string, needleIP string) bool {
-	if strings.Contains(needleIP, ":") {
-		needleIP = strings.Split(needleIP, ":")[0]
+func CIDRContainsIP(cidr string, needleStr string) bool {
+	// Ignore port
+	if strings.Contains(needleStr, ":") {
+		needleStr = strings.Split(needleStr, ":")[0]
 	}
 
-	haystickIP, ipNet, err := net.ParseCIDR(cidr)
+	// Return correct value even if the given 'cidr' is a ip address other then a cidr'
+	haystackIP := net.ParseIP(cidr)
+	needleIp := net.ParseIP(needleStr)
+	if haystackIP.Equal(needleIp) {
+		return true
+	}
+
+	// Cidr check
+	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return false
 	}
-	if haystickIP != nil && haystickIP.Equal(net.ParseIP(needleIP)) {
-		return true
-	}
-	return ipNet.Contains(net.ParseIP(needleIP))
+	return ipNet.Contains(needleIp)
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
@@ -103,6 +109,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		}
 
 		if !found {
+			h.logger.Info("purging from " + r.RemoteAddr + "is blocked")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			w.Write([]byte("Method not allowed"))
 			return nil
