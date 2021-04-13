@@ -38,8 +38,6 @@ func parseOptions(rawOptions map[string]string) (*badger.Options, error) {
 		case "string":
 			field.SetString(strV)
 		case "bool":
-			// Remove
-			fmt.Println("got bool")
 			v, err := strconv.ParseBool(strV)
 			if err != nil {
 				return nil, err
@@ -72,8 +70,6 @@ func parseOptions(rawOptions map[string]string) (*badger.Options, error) {
 		}
 	}
 
-	// TODO Remove
-	fmt.Printf("got %+v", o)
 	return &o, nil
 }
 
