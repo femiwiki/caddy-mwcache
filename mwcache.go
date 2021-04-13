@@ -47,8 +47,9 @@ type Handler struct {
 }
 
 type Config struct {
-	Backend  string   `json:"backend,omitempty"`
-	PurgeAcl []string `json:"purge_acl,omitempty"`
+	Backend      string            `json:"backend,omitempty"`
+	PurgeAcl     []string          `json:"purge_acl,omitempty"`
+	BadgerConfig map[string]string `json:"badger_config,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -67,7 +68,11 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 	case "map":
 		backend = newMapBackend()
 	case "badger":
-		backend = &BadgerBackend{}
+		b, err := newBadgerBackend(config.BadgerConfig)
+		if err != nil {
+			return err
+		}
+		backend = b
 	}
 	return nil
 }
@@ -331,6 +336,10 @@ func requestIsCacheable(r *http.Request) bool {
 //
 //	mwcache {
 //		[<backend>]
+//		[badger {
+//			<badger option key1> <badger option value1>
+//			<badger option key2> <badger option value2>
+//		}]
 //		[purge_acl <purge_acl_address>]
 //		[purge_acl {
 //			<purge_acl_address>
@@ -361,7 +370,17 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			case "map":
 				config.Backend = d.Val()
 			case "badger":
-				// Use default
+
+				if len(d.RemainingArgs()) != 1 {
+					config.BadgerConfig = map[string]string{}
+					for d.NextBlock(1) {
+						k := d.Val()
+						if !d.Next() {
+							return d.ArgErr()
+						}
+						config.BadgerConfig[k] = d.Val()
+					}
+				}
 			case "purge_acl":
 				// TODO throw error when an empty block is given
 				config.PurgeAcl = nil
@@ -388,6 +407,11 @@ func (h *Handler) Validate() error {
 	}
 	if config.PurgeAcl == nil {
 		return fmt.Errorf("no purge acl")
+	}
+	if config.BadgerConfig != nil {
+		if err := ValidateBadgerConfig(config.BadgerConfig); err != nil {
+			return err
+		}
 	}
 	return nil
 }

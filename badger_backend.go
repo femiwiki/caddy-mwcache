@@ -1,24 +1,97 @@
 package mwcache
 
 import (
+	"fmt"
+	"reflect"
+	"strconv"
+
 	badger "github.com/dgraph-io/badger/v3"
+	cases "github.com/google/agi/core/text/cases"
 )
 
 type BadgerBackend struct {
 	db *badger.DB
 }
 
-func (m *BadgerBackend) get(key string) (string, error) {
-	if m.db == nil {
-		var err error
-		m.db, err = badger.Open(badger.DefaultOptions("").WithInMemory(true))
-		if err != nil {
-			return "", err
+func snakeToPascal(snake string) string {
+	return cases.Snake(snake).ToPascal()
+}
+
+func ValidateBadgerConfig(rawOptions map[string]string) error {
+	optionReflect := reflect.ValueOf(badger.Options{})
+	for k, _ := range rawOptions {
+		k = snakeToPascal(k)
+		if !optionReflect.FieldByName(k).IsValid() {
+			return fmt.Errorf("Unknown config: " + k)
 		}
-		// TODO research whither explicitly closing is required
-		// defer m.db.Close()
+	}
+	return nil
+}
+
+func parseOptions(rawOptions map[string]string) (*badger.Options, error) {
+	o := badger.DefaultOptions("")
+	optionsReflect := reflect.ValueOf(&o)
+	for k, strV := range rawOptions {
+		k = snakeToPascal(k)
+		field := optionsReflect.Elem().FieldByName(k)
+		switch field.Type().String() {
+		case "string":
+			field.SetString(strV)
+		case "bool":
+			// Remove
+			fmt.Println("got bool")
+			v, err := strconv.ParseBool(strV)
+			if err != nil {
+				return nil, err
+			}
+			field.SetBool(v)
+		case "int":
+			v, err := strconv.ParseInt(strV, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			field.SetInt(v)
+		case "int32":
+			v, err := strconv.ParseInt(strV, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			field.SetInt(v)
+		case "int64":
+			v, err := strconv.ParseInt(strV, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			field.SetInt(v)
+		case "float64":
+			v, err := strconv.ParseFloat(strV, 64)
+			if err != nil {
+				return nil, err
+			}
+			field.SetFloat(v)
+		}
 	}
 
+	// TODO Remove
+	fmt.Printf("got %+v", o)
+	return &o, nil
+}
+
+func newBadgerBackend(rawOptions map[string]string) (*BadgerBackend, error) {
+	opt, err := parseOptions(rawOptions)
+	if err != nil {
+		return nil, err
+	}
+	db, err := badger.Open(*opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO research whither explicitly closing (m.db.Close()) is required
+	return &BadgerBackend{db: db}, nil
+}
+
+func (m *BadgerBackend) get(key string) (string, error) {
 	txn := m.db.NewTransaction(false)
 	defer txn.Discard()
 	item, err := txn.Get([]byte(key))

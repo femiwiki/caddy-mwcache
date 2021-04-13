@@ -17,6 +17,10 @@ See https://phabricator.wikimedia.org/T264735 for further details.
 ```caddyfile
 mwcache {
   [<backend>]
+  [badger {
+    <badger option key1> <badger option value1>
+    <badger option key2> <badger option value2>
+  }]
   [purge_acl 127.0.0.1]
   [purge_acl {
     <address1>
@@ -25,6 +29,7 @@ mwcache {
 ```
 
 - **backend** is either `map`(experimental), or `badger`. Default to `badger`.
+- **badger** is also used as a block to configure BadgerDB. Configuration keys are snake case versions of fields of [Badger's Options struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3@v3.2011.1#Options). But it is limited to only primitive types(bool, int, string).
 - **purge_acl** is either a list of acl or a ip address that are allowed to request to purge cache.
 
 You must add the next lines your [LocalSettings.php].
@@ -32,6 +37,8 @@ You must add the next lines your [LocalSettings.php].
 ```php
 $wgUseCdn = true;
 $wgCdnServers = '127.0.0.1';
+// If your web server supports TLS
+$wgInternalServer = 'http://127.0.0.1';
 ```
 
 ### Build

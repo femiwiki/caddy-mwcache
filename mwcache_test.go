@@ -13,30 +13,35 @@ func TestDirectives(t *testing.T) {
 		valid     bool
 		backend   string
 		acl       []string
+		badger    map[string]string
 	}{
 		{
 			caddyfile: `mwcache`,
 			valid:     true,
 			backend:   "badger",
 			acl:       []string{"127.0.0.1"},
+			badger:    nil,
 		},
 		{
 			caddyfile: `mwcache map`,
 			valid:     true,
 			backend:   "map",
 			acl:       []string{"127.0.0.1"},
+			badger:    nil,
 		},
 		{
 			caddyfile: `mwcache badger`,
 			valid:     true,
 			backend:   "badger",
 			acl:       []string{"127.0.0.1"},
+			badger:    nil,
 		},
 		{
 			caddyfile: `mwcache foo`,
 			valid:     false,
 			backend:   "",
 			acl:       nil,
+			badger:    nil,
 		},
 		{
 			// 4
@@ -48,6 +53,7 @@ func TestDirectives(t *testing.T) {
 			valid:   true,
 			backend: "badger",
 			acl:     []string{"11.11.11.11"},
+			badger:  nil,
 		},
 		{
 			// 5
@@ -60,6 +66,7 @@ func TestDirectives(t *testing.T) {
 			valid:   true,
 			backend: "map",
 			acl:     []string{"11.11.11.11"},
+			badger:  nil,
 		},
 		{
 			caddyfile: `
@@ -73,6 +80,7 @@ func TestDirectives(t *testing.T) {
 			valid:   true,
 			backend: "badger",
 			acl:     []string{"11.11.11.11", "11.11.11.12"},
+			badger:  nil,
 		},
 		{
 			caddyfile: `
@@ -88,6 +96,7 @@ func TestDirectives(t *testing.T) {
 			valid:   true,
 			backend: "badger",
 			acl:     []string{"11.11.11.11", "11.11.11.12", "11.11.11.13", "11.11.11.14"},
+			badger:  nil,
 		},
 		// TODO
 		// {
@@ -99,6 +108,34 @@ func TestDirectives(t *testing.T) {
 		// 	backend: "",
 		// 	acl:     nil,
 		// },
+		{
+			caddyfile: `
+			mwcache {
+				badger {
+					in_memory true
+				}
+			}
+			`,
+			valid:   true,
+			backend: "badger",
+			acl:     []string{"127.0.0.1"},
+			badger:  map[string]string{"in_memory": "true"},
+		},
+		{
+			// 9
+			caddyfile: `
+			mwcache {
+				badger {
+					in_memory true
+					value_log_file_size 8388608 # 1<23
+				}
+			}
+			`,
+			valid:   true,
+			backend: "badger",
+			acl:     []string{"127.0.0.1"},
+			badger:  map[string]string{"in_memory": "true", "value_log_file_size": "8388608"},
+		},
 	}
 
 	for i, test := range testcases {
@@ -124,6 +161,13 @@ func TestDirectives(t *testing.T) {
 			e := strings.Join(test.acl, ", ")
 			a := strings.Join(m.config.PurgeAcl, ", ")
 			t.Errorf("Test %d: Expected: '%s' but got '%s'", i, e, a)
+		}
+
+		for k, a := range m.config.BadgerConfig {
+			e := test.badger[k]
+			if a != e {
+				t.Errorf("Test %d: Expected: '%s' but got '%s'", i, e, a)
+			}
 		}
 	}
 }
