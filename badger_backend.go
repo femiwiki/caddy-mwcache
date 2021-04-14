@@ -84,7 +84,7 @@ func newBadgerBackend(rawOptions map[string]string) (*BadgerBackend, error) {
 	}
 
 	// TODO research whither explicitly closing (m.db.Close()) is required
-	return &BadgerBackend{db: db}, nil
+	return &BadgerBackend{db}, nil
 }
 
 func (m *BadgerBackend) get(key string) (string, error) {
@@ -107,16 +107,6 @@ func (m *BadgerBackend) get(key string) (string, error) {
 }
 
 func (m *BadgerBackend) put(key string, val string) error {
-	if m.db == nil {
-		var err error
-		m.db, err = badger.Open(badger.DefaultOptions("").WithInMemory(true))
-		if err != nil {
-			return err
-		}
-		// TODO research whither explicitly closing is required
-		// defer m.db.Close()
-	}
-
 	txn := m.db.NewTransaction(true)
 	defer txn.Discard()
 
@@ -130,16 +120,6 @@ func (m *BadgerBackend) put(key string, val string) error {
 }
 
 func (m *BadgerBackend) delete(key string) error {
-	if m.db == nil {
-		var err error
-		m.db, err = badger.Open(badger.DefaultOptions("").WithInMemory(true))
-		if err != nil {
-			return err
-		}
-		// TODO research whither explicitly closing is required
-		// defer m.db.Close()
-	}
-
 	txn := m.db.NewTransaction(true)
 	defer txn.Discard()
 
