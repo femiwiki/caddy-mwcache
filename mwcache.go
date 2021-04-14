@@ -31,7 +31,6 @@ type metadata struct {
 	Status int
 }
 
-var errUncacheable = fmt.Errorf("uncacheable")
 var errStale = fmt.Errorf("stale")
 
 const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
@@ -121,7 +120,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		}
 		key := createKey(r)
 		backend.delete(key)
-		h.logger.Info("purged for key " + key)
+		h.logger.Info("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
 		w.Write([]byte("Purged"))
 		return nil
@@ -142,7 +141,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	val, err := backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
-			h.logger.Info("no hit for " + key)
+			h.logger.Info("no hit: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -151,7 +150,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	// Cache hit, response with cache
-	h.logger.Info("cache hit for " + key)
+	h.logger.Info("cache hit: " + key)
 
 	pool := sync.Pool{
 		New: func() interface{} {
@@ -165,7 +164,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 
 	if err := h.writeResponse(w, buf, true); err != nil {
 		if err == errStale {
-			h.logger.Info("cache for " + key + " is stale, drop")
+			h.logger.Info("staled, drop: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -223,14 +222,14 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return err
 	}
 	if !rec.Buffered() || buf.Len() == 0 {
-		return errUncacheable
-	}
-
-	// Cache recoded buf to the backend
-	h.logger.Info("put cache for " + key)
-	response := string(buf.Bytes())
-	if err := backend.put(key, response); err != nil {
-		return err
+		h.logger.Info("uncacheable: " + key)
+	} else {
+		// Cache recoded buf to the backend
+		response := string(buf.Bytes())
+		if err := backend.put(key, response); err != nil {
+			return err
+		}
+		h.logger.Info("put cache: " + key)
 	}
 
 	return h.writeResponse(w, buf, false)
