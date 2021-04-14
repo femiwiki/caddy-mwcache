@@ -19,7 +19,7 @@ func snakeToPascal(snake string) string {
 
 func ValidateBadgerConfig(rawOptions map[string]string) error {
 	optionReflect := reflect.ValueOf(badger.Options{})
-	for k, _ := range rawOptions {
+	for k := range rawOptions {
 		k = snakeToPascal(k)
 		if !optionReflect.FieldByName(k).IsValid() {
 			return fmt.Errorf("Unknown config: " + k)

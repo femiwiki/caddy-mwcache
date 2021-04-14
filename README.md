@@ -21,6 +21,13 @@ mwcache {
     <badger option key1> <badger option value1>
     <badger option key2> <badger option value2>
   }]
+  [ristretto {
+    num_counters <value>
+	  max_cost <value>
+	  buffer_items <value>
+    <additional config key1> <value1>
+    <additional config key2> <value2>
+  }]
   [purge_acl 127.0.0.1]
   [purge_acl {
     <address1>

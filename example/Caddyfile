@@ -8,11 +8,10 @@ php_fastcgi 127.0.0.1:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
 mwcache {
-	badger {
-		in_memory true
-    value_log_file_size 1073741823 # Default
-    num_memtables 5 # Default
-    mem_table_size 67108864 # Default
+	ristretto {
+		num_counters 100000
+		max_cost 10000
+		buffer_items 64
 	}
 	purge_acl 127.0.0.1
 }

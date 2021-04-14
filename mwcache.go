@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/caddyserver/caddy/v2"
-	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"go.uber.org/zap"
@@ -46,9 +45,10 @@ type Handler struct {
 }
 
 type Config struct {
-	Backend      string            `json:"backend,omitempty"`
-	PurgeAcl     []string          `json:"purge_acl,omitempty"`
-	BadgerConfig map[string]string `json:"badger_config,omitempty"`
+	Backend         string            `json:"backend,omitempty"`
+	PurgeAcl        []string          `json:"purge_acl,omitempty"`
+	BadgerConfig    map[string]string `json:"badger_config,omitempty"`
+	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -57,23 +57,6 @@ func (Handler) CaddyModule() caddy.ModuleInfo {
 		ID:  "http.handlers.mwcache",
 		New: func() caddy.Module { return new(Handler) },
 	}
-}
-
-// Provision implements caddy.Provisioner.
-func (h *Handler) Provision(ctx caddy.Context) error {
-	h.logger = ctx.Logger(h)
-	h.logger.Info("logger is created")
-	switch config.Backend {
-	case "map":
-		backend = newMapBackend()
-	case "badger":
-		b, err := newBadgerBackend(config.BadgerConfig)
-		if err != nil {
-			return err
-		}
-		backend = b
-	}
-	return nil
 }
 
 func CIDRContainsIP(cidr string, needleStr string) bool {
@@ -329,103 +312,10 @@ func requestIsCacheable(r *http.Request) bool {
 	return true
 }
 
-// UnmarshalCaddyfile implements caddyfile.Unmarshaler. Syntax:
-//
-//	mwcache [<backend>]
-//
-//	mwcache {
-//		[<backend>]
-//		[badger {
-//			<badger option key1> <badger option value1>
-//			<badger option key2> <badger option value2>
-//		}]
-//		[purge_acl <purge_acl_address>]
-//		[purge_acl {
-//			<purge_acl_address>
-//			[<purge_acl_address_2>]
-//		}]
-//	}
-//
-func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	h.config = Config{
-		Backend:  "badger",
-		PurgeAcl: []string{"127.0.0.1"},
-	}
-	config = &h.config
-	for d.Next() {
-		if len(d.RemainingArgs()) == 1 {
-			switch d.Val() {
-			case "map":
-				config.Backend = d.Val()
-			case "badger":
-				// Use default
-			default:
-				return d.ArgErr()
-			}
-		}
-
-		for d.NextBlock(0) {
-			switch d.Val() {
-			case "map":
-				config.Backend = d.Val()
-			case "badger":
-
-				if len(d.RemainingArgs()) != 1 {
-					config.BadgerConfig = map[string]string{}
-					for d.NextBlock(1) {
-						k := d.Val()
-						if !d.Next() {
-							return d.ArgErr()
-						}
-						config.BadgerConfig[k] = d.Val()
-					}
-				}
-			case "purge_acl":
-				// TODO throw error when an empty block is given
-				config.PurgeAcl = nil
-				if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
-					config.PurgeAcl = []string{d.Val()}
-				} else {
-					for d.NextBlock(1) {
-						config.PurgeAcl = append(config.PurgeAcl, d.Val())
-					}
-				}
-			default:
-				return d.ArgErr()
-			}
-		}
-	}
-	return nil
-}
-
-// Validate implements caddy.Validator.
-func (h *Handler) Validate() error {
-	h.config = *config
-	if config.Backend == "" {
-		return fmt.Errorf("no backend")
-	}
-	if config.PurgeAcl == nil {
-		return fmt.Errorf("no purge acl")
-	}
-	if config.BadgerConfig != nil {
-		if err := ValidateBadgerConfig(config.BadgerConfig); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var m Handler
-	err := m.UnmarshalCaddyfile(h.Dispenser)
-	return m, err
-}
-
 // Interface guards
 var (
 	_ caddy.Module                = (*Handler)(nil)
 	_ caddy.Provisioner           = (*Handler)(nil)
 	_ caddy.Validator             = (*Handler)(nil)
-	_ caddyfile.Unmarshaler       = (*Handler)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Handler)(nil)
 )
