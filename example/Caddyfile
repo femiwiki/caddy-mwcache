@@ -3,7 +3,7 @@
 }
 :2015
 root * /var/www/html
-rewrite /w/* /index.php
+rewrite / /index.php
 php_fastcgi 127.0.0.1:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
