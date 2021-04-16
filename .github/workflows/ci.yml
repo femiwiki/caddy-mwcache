@@ -6,13 +6,13 @@ jobs:
   lint-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.4
       - run: test -z $(go fmt)
 
   test-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.3.4
       - uses: actions/setup-go@v2
       - name: Run coverage
         run: go test -race -coverprofile=coverage.txt -covermode=atomic
