@@ -91,7 +91,7 @@ docker-compose --project-directory example down
 xcaddy stop
 ```
 
-[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache
+[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache/main
 [github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
 [codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
 [codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
