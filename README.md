@@ -55,11 +55,6 @@ Prerequisites:
 - Go 1.15
 - [xcaddy]
 
-Prerequisites:
-
-- Go 1.15
-- [xcaddy]
-
 ```bash
 xcaddy build
 
@@ -71,24 +66,29 @@ xcaddy build
 Prerequisites:
 
 - Go 1.15
-- [xcaddy]
 - [docker-compose]
 
 ```bash
 # Start a php-fpm server
 docker-compose --project-directory example up --detach
 # Start a web server
-xcaddy start --config example/Caddyfile
+docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy start --config example/Caddyfile
+# Or detach by run command
+# docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy run --config example/Caddyfile
 
 # Test
 curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015'
+curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015/slow.php'
+curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015/slow.php'
 
 # Reload Caddyfile
-xcaddy reload --config example/Caddyfile
+docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy reload --config example/Caddyfile
 
-# Stop
+# Stop the web server
+docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy stop
+
+# Stop the all services
 docker-compose --project-directory example down
-xcaddy stop
 ```
 
 [github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache/main

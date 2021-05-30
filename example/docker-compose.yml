@@ -6,3 +6,12 @@ services:
       - 9000:9000
     volumes:
       - .:/var/www/html:ro
+  caddy:
+    image: caddy:builder
+    command: tail -f /dev/null
+    ports:
+      - 2015:2015
+      - 2019:2019
+    volumes:
+      - ..:/root/src
+      - .cache:/root/.cache:rw

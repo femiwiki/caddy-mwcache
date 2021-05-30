@@ -1,3 +1,4 @@
 /caddy
-/vendor
-coverage.txt
+/vendor/
+/coverage.txt
+.cache/
