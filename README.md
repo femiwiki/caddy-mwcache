@@ -77,9 +77,9 @@ docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy
 # docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy run --config example/Caddyfile
 
 # Test
-curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015'
-curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015/slow.php'
-curl -so /dev/null -w "%{time_total}\n" '127.0.0.1:2015/slow.php'
+curl -so /dev/null -w "%{time_total}\n" 'http://127.0.0.1:2015'
+curl -so /dev/null -w "%{time_total}\n" 'http://127.0.0.1:2015/slow.php'
+curl -so /dev/null -w "%{time_total}\n" 'http://127.0.0.1:2015/slow.php'
 
 # Reload Caddyfile
 docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy reload --config example/Caddyfile

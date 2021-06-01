@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Do not cache binary responses.
+
 ## v0.0.1
 
 - Add support for [ristretto](https://github.com/dgraph-io/ristretto) as backend. The default backend is now  changed to ristretto.
