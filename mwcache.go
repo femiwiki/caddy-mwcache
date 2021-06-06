@@ -34,6 +34,8 @@ var errStale = fmt.Errorf("stale")
 
 const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
+const octet = "application/octet-stream"
+
 func init() {
 	caddy.RegisterModule(Handler{})
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
@@ -183,8 +185,8 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		if header.Get("Set-Cookie") != "" {
 			return false
 		}
-		// https://github.com/femiwiki/femiwiki/issues/265
-		if http.DetectContentType(buf.Bytes()) == "application/octet-stream" {
+		// https://github.com/femiwiki/caddy-mwcache/issues/14
+		if http.DetectContentType(buf.Bytes()) == octet {
 			return false
 		}
 		if header.Get("Date") == "" {
@@ -239,6 +241,9 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCac
 	}
 	w.WriteHeader(meta.Status)
 
+	if http.DetectContentType(buf.Bytes()) == octet {
+		return fmt.Errorf("unexpected octet-stream")
+	}
 	// Write body
 	if _, err := io.Copy(w, buf); err != nil {
 		return err
