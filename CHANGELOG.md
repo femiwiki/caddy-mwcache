@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Do not serve cached binaries.
+
 ## v0.0.2
 
 - Do not cache binary responses.
