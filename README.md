@@ -91,6 +91,12 @@ docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy
 docker-compose --project-directory example down
 ```
 
+---
+
+The source code of _femiwiki/caddy-mwcache_ is primarily distributed under the terms
+of the [GNU Affero General Public License v3.0] or any later version. See
+[COPYRIGHT] for details.
+
 [github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache/main
 [github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
 [codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
@@ -99,3 +105,4 @@ docker-compose --project-directory example down
 [xcaddy]: https://github.com/caddyserver/xcaddy
 [docker-compose]: https://docs.docker.com/compose/
 [localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php
+[copyright]: COPYRIGHT
