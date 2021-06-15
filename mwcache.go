@@ -170,7 +170,9 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
-		if status < 200 || status >= 400 {
+		if status < 200 || status >= 400 ||
+			// https://github.com/femiwiki/caddy-mwcache/issues/16
+			status == 304 {
 			return false
 		}
 		c := header.Get("Cache-Control")
