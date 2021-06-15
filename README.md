@@ -1,4 +1,4 @@
-# caddy-mwcache [![Github checks status]][github checks link] [![codecov.io status]][codecov.io link]
+# caddy-mwcache [![go doc badge]][go doc link] [![Github checks status]][github checks link] [![codecov.io status]][codecov.io link]
 
 **⚠️ Work-in-progress** - See [milestones for v1.0.0](https://github.com/femiwiki/caddy-mwcache/milestone/1)
 
@@ -97,6 +97,8 @@ The source code of _femiwiki/caddy-mwcache_ is primarily distributed under the t
 of the [GNU Affero General Public License v3.0] or any later version. See
 [COPYRIGHT] for details.
 
+[go doc badge]: https://img.shields.io/badge/godoc-reference-blue.svg
+[go doc link]: http://godoc.org/github.com/femiwiki/caddy-mwcache
 [github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache/main
 [github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
 [codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
