@@ -34,8 +34,6 @@ var errStale = fmt.Errorf("stale")
 
 const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
-const octet = "application/octet-stream"
-
 func init() {
 	caddy.RegisterModule(Handler{})
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
@@ -120,13 +118,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 
 func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !requestIsCacheable(r) {
+		h.logger.Info("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
 	}
 	key := createKey(r)
 	val, err := backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
-			h.logger.Info("no hit: " + key)
+			h.logger.Info("cache miss: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -172,7 +171,9 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
-		if status < 200 || status >= 400 {
+		if status < 200 || status >= 400 ||
+			// https://github.com/femiwiki/caddy-mwcache/issues/16
+			status == 304 {
 			return false
 		}
 		c := header.Get("Cache-Control")
@@ -183,10 +184,6 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 			return false
 		}
 		if header.Get("Set-Cookie") != "" {
-			return false
-		}
-		// https://github.com/femiwiki/caddy-mwcache/issues/14
-		if http.DetectContentType(buf.Bytes()) == octet {
 			return false
 		}
 		if header.Get("Date") == "" {
@@ -211,7 +208,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return err
 	}
 	if !rec.Buffered() || buf.Len() == 0 {
-		h.logger.Info("uncacheable: " + key)
+		h.logger.Info("response is uncacheable: " + key)
 	} else {
 		// Cache recoded buf to the backend
 		response := string(buf.Bytes())
@@ -241,9 +238,6 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCac
 	}
 	w.WriteHeader(meta.Status)
 
-	if http.DetectContentType(buf.Bytes()) == octet {
-		return fmt.Errorf("unexpected octet-stream")
-	}
 	// Write body
 	if _, err := io.Copy(w, buf); err != nil {
 		return err
