@@ -94,7 +94,7 @@ of the [GNU Affero General Public License v3.0] or any later version. See
 
 [go doc badge]: https://img.shields.io/badge/godoc-reference-blue.svg
 [go doc link]: http://godoc.org/github.com/femiwiki/caddy-mwcache
-[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache/main
+[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache
 [github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
 [codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
 [codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
