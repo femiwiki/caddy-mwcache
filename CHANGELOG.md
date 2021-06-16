@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.4
 
 - Does not cache 304.
 - Reverts "Does not serve cache if the body is binaries" and "Does not cache binary responses".
