@@ -18,10 +18,6 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		if len(d.RemainingArgs()) == 1 {
 			switch d.Val() {
-			case "map":
-				config.Backend = d.Val()
-			case "badger":
-				config.Backend = d.Val()
 			case "ristretto":
 				// Use default
 			default:
@@ -31,21 +27,6 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		for d.NextBlock(0) {
 			switch d.Val() {
-			case "map":
-				config.Backend = d.Val()
-			case "badger":
-				config.Backend = d.Val()
-				// Unmarshal block
-				if len(d.RemainingArgs()) != 1 {
-					config.BadgerConfig = map[string]string{}
-					for d.NextBlock(1) {
-						k := d.Val()
-						if !d.Next() {
-							return d.ArgErr()
-						}
-						config.BadgerConfig[k] = d.Val()
-					}
-				}
 			case "ristretto":
 				// Use default backend
 				// Unmarshal block
@@ -86,11 +67,6 @@ func (h *Handler) Validate() error {
 	if config.PurgeAcl == nil {
 		return fmt.Errorf("no purge acl")
 	}
-	if config.BadgerConfig != nil {
-		if err := ValidateBadgerConfig(config.BadgerConfig); err != nil {
-			return err
-		}
-	}
 	if config.RistrettoConfig != nil {
 		if err := ValidateRistrettoConfig(config.RistrettoConfig); err != nil {
 			return err
@@ -104,14 +80,6 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 	h.logger = ctx.Logger(h)
 	h.logger.Info("logger is created")
 	switch config.Backend {
-	case "map":
-		backend = newMapBackend()
-	case "badger":
-		b, err := newBadgerBackend(config.BadgerConfig)
-		if err != nil {
-			return err
-		}
-		backend = b
 	case "ristretto":
 		b, err := newRistrettoBackend(config.RistrettoConfig)
 		if err != nil {

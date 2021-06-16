@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Drops supports for 'map' and 'badger' backend.
+
 ## v0.0.4
 
 - Does not cache 304.

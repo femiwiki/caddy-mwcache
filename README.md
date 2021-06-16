@@ -23,10 +23,6 @@ mwcache {
     <additional config key1> <value1>
     <additional config key2> <value2>
   }]
-  [badger {
-    <badger option key1> <badger option value1>
-    <badger option key2> <badger option value2>
-  }]
   [purge_acl 127.0.0.1]
   [purge_acl {
     <address1>
@@ -34,8 +30,8 @@ mwcache {
   }]
 ```
 
-- **backend** is either `ristretto`, `badger`, or `map`(experimental). Default to `ristretto`.
-- **ristretto** and **badger** are also used as a block to configure backend. Configuration keys are snake case versions of fields of [Ristretto's Config struct](https://pkg.go.dev/github.com/dgraph-io/ristretto#Config) or [Badger's Options struct](https://pkg.go.dev/github.com/dgraph-io/badger/v3@v3.2011.1#Options). But it is limited to only primitive types(bool, int, string).
+- **backend** support only one value `ristretto`. Default to `ristretto`.
+- **ristretto** is also used as a block to configure backend. Configuration keys are snake case versions of fields of [Ristretto's Config struct](https://pkg.go.dev/github.com/dgraph-io/ristretto#Config). But it is limited to only primitive types(bool, int, string).
 - **purge_acl** is either a list of acl or a ip address that are allowed to request to purge cache.
 
 You must add the next lines your [LocalSettings.php].

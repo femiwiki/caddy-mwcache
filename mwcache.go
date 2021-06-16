@@ -47,7 +47,6 @@ type Handler struct {
 type Config struct {
 	Backend         string            `json:"backend,omitempty"`
 	PurgeAcl        []string          `json:"purge_acl,omitempty"`
-	BadgerConfig    map[string]string `json:"badger_config,omitempty"`
 	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
 }
 
