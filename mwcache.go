@@ -186,10 +186,6 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		if header.Get("Set-Cookie") != "" {
 			return false
 		}
-		// https://github.com/femiwiki/femiwiki/issues/265
-		if http.DetectContentType(buf.Bytes()) == "application/octet-stream" {
-			return false
-		}
 		if header.Get("Date") == "" {
 			header.Set("Date", time.Now().UTC().Format(timeFormat))
 		}
