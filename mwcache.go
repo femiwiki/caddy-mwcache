@@ -118,13 +118,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 
 func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !requestIsCacheable(r) {
+		h.logger.Info("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
 	}
 	key := createKey(r)
 	val, err := backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
-			h.logger.Info("no hit: " + key)
+			h.logger.Info("cache miss: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -211,7 +212,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return err
 	}
 	if !rec.Buffered() || buf.Len() == 0 {
-		h.logger.Info("uncacheable: " + key)
+		h.logger.Info("response is uncacheable: " + key)
 	} else {
 		// Cache recoded buf to the backend
 		response := string(buf.Bytes())
