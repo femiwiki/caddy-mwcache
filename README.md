@@ -4,50 +4,57 @@ caddy-mwcache
 [![Github checks status]][github checks link]
 [![codecov.io status]][codecov.io link]
 
-[go doc badge]: https://img.shields.io/badge/godoc-reference-blue.svg
-[go doc link]: http://godoc.org/github.com/femiwiki/caddy-mwcache
-[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache
-[github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
-[codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
-[codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
-
-**⚠️ Work-in-progress** - See [milestones for v1.0.0](https://github.com/femiwiki/caddy-mwcache/milestone/1)
-
 caddy-mwcache is a cache plugin for [MediaWiki].
 
 ### Usage
+```caddyfile
+example.com {
+    mwcache
+}
+```
 
-**NOTE**: You cannot use this plugin if the next conditions match:
+Currently, only "ristretto" backend is supported and used by default.
 
-- php-curl extension installed
-- curl >= v7.62
+```caddyfile
+# Default value
+mwcache {
+    ristretto
+    purge_acl 127.0.0.1
+}
+```
 
-See https://phabricator.wikimedia.org/T264735 for further details.
+- **ristretto** is also used as a block to configure backend. Configuration keys
+  are snake case versions of fields of [Ristretto's Config struct]. But it is
+  limited to only primitive types(bool, int, string, etc).
+- **purge_acl** is either a single item or a list of CIDRs or IP addresses that
+  are allowed to request to purge cache.
 
 ```caddyfile
 mwcache {
-  [<backend>]
-  [ristretto {
-    num_counters <value>
-	  max_cost <value>
-	  buffer_items <value>
-    <additional config key1> <value1>
-    <additional config key2> <value2>
-  }]
-  [purge_acl 127.0.0.1]
-  [purge_acl {
-    <address1>
-    <...>
-  }]
+    ristretto {
+        num_counters <value>
+        max_cost <value>
+        buffer_items <value>
+        <additional config key1> <value1>
+        <additional config key2> <value2>
+    }
+    purge_acl {
+        <cidr1>
+        <cidr2>
+        <address1>
+        <address2>
+    }
+}
 ```
 
-- **backend** support only one value `ristretto`. Default to `ristretto`.
-- **ristretto** is also used as a block to configure backend. Configuration keys are snake case versions of fields of [Ristretto's Config struct](https://pkg.go.dev/github.com/dgraph-io/ristretto#Config). But it is limited to only primitive types(bool, int, string).
-- **purge_acl** is either a list of acl or a ip address that are allowed to request to purge cache.
+### Configuring MediaWiki
+> **WARNING**: If you are using php-curl extension with curl ≥7.62, you cannot
+> use this plugin due to MediaWiki's bug [T264735].
 
 You must add the next lines your [LocalSettings.php].
 
 ```php
+// LocalSettings.php
 $wgUseCdn = true;
 $wgCdnServers = '127.0.0.1';
 // If your web server supports TLS
@@ -55,7 +62,6 @@ $wgInternalServer = 'http://127.0.0.1';
 ```
 
 ### Build
-
 Prerequisites:
 
 - Go 1.15
@@ -68,11 +74,7 @@ xcaddy build
 ```
 
 ### Development
-
-Prerequisites:
-
-- Go 1.15
-- [docker-compose]
+Use [docker-compose] to setup test environment.
 
 ```bash
 # Start a php-fpm server
@@ -97,16 +99,27 @@ docker-compose --project-directory example exec --workdir=/root/src caddy xcaddy
 docker-compose --project-directory example down
 ```
 
----
+&nbsp;
 
-The source code of _femiwiki/caddy-mwcache_ is primarily distributed under the terms
-of the [GNU Affero General Public License v3.0] or any later version. See
+--------
+
+The source code of *femiwiki/caddy-mwcache* is primarily distributed under the
+terms of the [GNU Affero General Public License v3.0] or any later version. See
 [COPYRIGHT] for details.
 
+[go doc badge]: https://img.shields.io/badge/godoc-reference-blue.svg
+[go doc link]: http://godoc.org/github.com/femiwiki/caddy-mwcache
+[github checks status]: https://badgen.net/github/checks/femiwiki/caddy-mwcache
+[github checks link]: https://github.com/femiwiki/caddy-mwcache/actions
+[codecov.io status]: https://badgen.net/codecov/c/github/femiwiki/caddy-mwcache
+[codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
+
 [mediawiki]: https://www.mediawiki.org
+[Ristretto's Config struct]: https://pkg.go.dev/github.com/dgraph-io/ristretto#Config
+[T264735]: https://phabricator.wikimedia.org/T264735
+[localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php
 [xcaddy]: https://github.com/caddyserver/xcaddy
 [docker-compose]: https://docs.docker.com/compose/
-[localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php
 
 [GNU Affero General Public License v3.0]: LICENSE
 [COPYRIGHT]: COPYRIGHT
