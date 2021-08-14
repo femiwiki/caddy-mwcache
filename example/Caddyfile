@@ -1,5 +1,5 @@
 {
-	order mwcache before rewrite
+    order mwcache before rewrite
 }
 :2015
 root * /var/www/html
@@ -8,18 +8,18 @@ php_fastcgi php:9000
 reverse_proxy /localhost/* 127.0.0.1:7231
 
 mwcache {
-	ristretto {
-		num_counters 100000
-		max_cost 10000
-		buffer_items 64
-	}
-	purge_acl {
-    172.0.0.0/8
-		127.0.0.1
-	}
+    ristretto {
+        num_counters 100000
+        max_cost 10000
+        buffer_items 64
+    }
+    purge_acl {
+        172.0.0.0/8
+        127.0.0.1
+    }
 }
 
 log {
-	output stdout
-	level info
+    output stdout
+    level info
 }
