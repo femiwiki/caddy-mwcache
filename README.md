@@ -64,7 +64,7 @@ $wgInternalServer = 'http://127.0.0.1';
 ### Build
 Prerequisites:
 
-- Go 1.15
+- Go
 - [xcaddy]
 
 ```bash
