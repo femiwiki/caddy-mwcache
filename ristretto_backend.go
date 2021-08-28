@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strconv"
 
-	ristretto "github.com/dgraph-io/ristretto"
+	ristretto "github.com/dgraph-io/ristretto/010"
 	cases "github.com/google/agi/core/text/cases"
 )
 
