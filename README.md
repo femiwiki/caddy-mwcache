@@ -68,6 +68,10 @@ Prerequisites:
 - [xcaddy]
 
 ```bash
+# You need forked version of xcaddy
+# see https://github.com/caddyserver/xcaddy/issues/68 for the details
+go install github.com/simnalamburt/xcaddy/cmd/xcaddy@466a1a4b86
+
 # Run the program right away
 xcaddy
 xcaddy version
