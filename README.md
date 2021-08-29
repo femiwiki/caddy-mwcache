@@ -68,9 +68,15 @@ Prerequisites:
 - [xcaddy]
 
 ```bash
-xcaddy build
+# Run the program right away
+xcaddy
+xcaddy version
+xcaddy list-modules
 
-# ./caddy is the output
+# Build the binary, "./caddy" is the output
+xcaddy build \
+  --with github.com/dgraph-io/ristretto/010=github.com/dgraph-io/ristretto@v0.1.0 \
+  --with github.com/femiwiki/caddy-mwcache
 ```
 
 ### Development
