@@ -2,11 +2,9 @@ module github.com/femiwiki/caddy-mwcache
 
 go 1.17
 
-replace github.com/dgraph-io/ristretto/010 => github.com/dgraph-io/ristretto v0.1.0
-
 require (
 	github.com/caddyserver/caddy/v2 v2.4.4
-	github.com/dgraph-io/ristretto/010 v0.0.0-00010101000000-000000000000
+	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/agi v1.0.0
 	go.uber.org/zap v1.19.0
 )
@@ -26,7 +24,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
-	github.com/dgraph-io/ristretto v0.0.4-0.20200906165740-41ebdbffecfd // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
@@ -34,6 +31,7 @@ require (
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/cel-go v0.7.3 // indirect

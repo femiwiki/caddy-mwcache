@@ -68,10 +68,6 @@ Prerequisites:
 - [xcaddy]
 
 ```bash
-# You need unreleased version of xcaddy
-# see https://github.com/caddyserver/xcaddy/issues/68 for the details
-go install github.com/caddyserver/xcaddy/cmd/xcaddy@3d8622df
-
 # Run the program right away
 xcaddy
 xcaddy version
@@ -79,7 +75,6 @@ xcaddy list-modules
 
 # Build the binary, "./caddy" is the output
 xcaddy build \
-  --with github.com/dgraph-io/ristretto/010=github.com/dgraph-io/ristretto@v0.1.0 \
   --with github.com/femiwiki/caddy-mwcache
 ```
 
