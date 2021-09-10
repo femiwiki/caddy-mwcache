@@ -3,7 +3,7 @@ module github.com/femiwiki/caddy-mwcache
 go 1.17
 
 require (
-	github.com/caddyserver/caddy/v2 v2.4.4
+	github.com/caddyserver/caddy/v2 v2.4.5
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/google/agi v1.0.0
 	go.uber.org/zap v1.19.0
@@ -16,7 +16,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2 // indirect
 	github.com/antlr/antlr4 v0.0.0-20200503195918-621b933c7a7f // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/caddyserver/certmagic v0.14.4 // indirect
+	github.com/caddyserver/certmagic v0.14.5 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/cheekybits/genny v1.0.0 // indirect
