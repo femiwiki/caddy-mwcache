@@ -6,7 +6,7 @@ jobs:
   lint-go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: test -z $(go fmt)
 
   test-go:
@@ -15,7 +15,7 @@ jobs:
       matrix:
         go: ['1.16', '1.17']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
