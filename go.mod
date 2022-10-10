@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/caddyserver/caddy/v2 v2.4.6
 	github.com/dgraph-io/ristretto v0.1.0
-	github.com/google/agi v3.0.1+incompatible
+	github.com/google/agi v3.2.1+incompatible
 	go.uber.org/zap v1.21.0
 )
 
