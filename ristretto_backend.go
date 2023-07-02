@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/dgraph-io/ristretto"
-	cases "github.com/google/agi/core/text/cases"
+	"github.com/stoewer/go-strcase"
 )
 
 type RistrettoBackend struct {
@@ -31,7 +31,7 @@ func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error
 func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	optionReflect := reflect.ValueOf(ristretto.Config{})
 	for k := range rawOptions {
-		k = cases.Snake(k).ToPascal()
+		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
 			return fmt.Errorf("Unknown config: " + k)
 		}
@@ -44,7 +44,7 @@ func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, err
 	c := ristretto.Config{}
 	optionsReflect := reflect.ValueOf(&c)
 	for k, strV := range rawOptions {
-		k = cases.Snake(k).ToPascal()
+		k = strcase.UpperCamelCase(k)
 		field := optionsReflect.Elem().FieldByName(k)
 		switch field.Type().String() {
 		case "string":
