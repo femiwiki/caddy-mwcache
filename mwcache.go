@@ -246,9 +246,9 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCac
 
 // isFresh investments a request that has the given header is fresh.
 // Targets only mediawiki-specific directives defined below files:
-//	- https://github.com/wikimedia/mediawiki/blob/master/includes/OutputPage.php
-//	- https://github.com/wikimedia/mediawiki/blob/master/includes/api/ApiMain.php
-//	- https://github.com/wikimedia/mediawiki/blob/master/includes/AjaxResponse.php
+//   - https://github.com/wikimedia/mediawiki/blob/master/includes/OutputPage.php
+//   - https://github.com/wikimedia/mediawiki/blob/master/includes/api/ApiMain.php
+//   - https://github.com/wikimedia/mediawiki/blob/master/includes/AjaxResponse.php
 func (h Handler) isFresh(header http.Header) bool {
 	var maxAgeInt uint64
 	var err error
