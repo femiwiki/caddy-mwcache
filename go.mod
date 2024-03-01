@@ -6,7 +6,7 @@ require (
 	github.com/caddyserver/caddy/v2 v2.7.6
 	github.com/dgraph-io/ristretto v0.1.1
 	github.com/stoewer/go-strcase v1.3.0
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 )
 
 require (
