@@ -3,6 +3,11 @@
 ## Unreleased
 
 - Drops supports for 'map' and 'badger' backend.
+- Requires Go 1.25.
+- Changed external libraries:
+  - Bump caddy from 2.9.1 to 2.11.4
+  - Bump ristretto from 0.1.1 to 0.2.0 (#74)
+  - Bump go-strcase from 1.3.0 to 1.3.1 (#87)
 
 ## v0.0.4
 
