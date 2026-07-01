@@ -33,7 +33,7 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	for k := range rawOptions {
 		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
-			return fmt.Errorf("Unknown config: " + k)
+			return fmt.Errorf("Unknown config: %s", k)
 		}
 	}
 	return nil
