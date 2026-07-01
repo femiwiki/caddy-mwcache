@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.0 - 2026-07-01
 
 - Drops supports for 'map' and 'badger' backend.
 - Requires Go 1.25.
