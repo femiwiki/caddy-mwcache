@@ -32,6 +32,12 @@ type metadata struct {
 
 var errStale = fmt.Errorf("stale")
 
+var (
+	uncacheableDirective = regexp.MustCompile(`(private|no-cache|no-store)`)
+	sessionCookie        = regexp.MustCompile(`([sS]ession|Token)=`)
+	sMaxAge              = regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
+)
+
 const legacyTimeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
 func init() {
@@ -179,7 +185,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		if c == "" {
 			return false
 		}
-		if match, err := regexp.Match(`(private|no-cache|no-store)`, []byte(c)); err == nil && match {
+		if uncacheableDirective.MatchString(c) {
 			return false
 		}
 		if header.Get("Set-Cookie") != "" {
@@ -261,8 +267,7 @@ func (h Handler) isFresh(header http.Header) bool {
 		h.logger.Info("stored cache has no Cache-Control header")
 		return true
 	}
-	re := regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
-	submatch := re.FindStringSubmatch(cc)
+	submatch := sMaxAge.FindStringSubmatch(cc)
 	if len(submatch) != 2 {
 		h.logger.Info("Cache-Control has no s-maxage")
 		return true
@@ -309,7 +314,7 @@ func requestIsCacheable(r *http.Request) bool {
 	// don't cache request with session or token cookie
 	// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
 	cookie := r.Header.Get("Cookie")
-	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err == nil && match {
+	if sessionCookie.MatchString(cookie) {
 		return false
 	}
 	if key := createKey(r); key == "" {
