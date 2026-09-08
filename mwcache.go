@@ -114,7 +114,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 		}
 		key := createKey(r)
 		backend.delete(key)
-		h.logger.Info("purged:  " + key)
+		h.logger.Debug("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
 		w.Write([]byte("Purged"))
 		return nil
@@ -129,14 +129,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 
 func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !requestIsCacheable(r) {
-		h.logger.Info("request is uncacheable: " + r.URL.RequestURI())
+		h.logger.Debug("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
 	}
 	key := createKey(r)
 	val, err := backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
-			h.logger.Info("cache miss: " + key)
+			h.logger.Debug("cache miss: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -145,7 +145,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	// Cache hit, response with cache
-	h.logger.Info("cache hit: " + key)
+	h.logger.Debug("cache hit: " + key)
 
 	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -154,7 +154,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 
 	if err := h.writeResponse(w, buf, true); err != nil {
 		if err == errStale {
-			h.logger.Info("staled, drop: " + key)
+			h.logger.Debug("staled, drop: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
 			}
@@ -209,14 +209,14 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return err
 	}
 	if !rec.Buffered() || buf.Len() == 0 {
-		h.logger.Info("response is uncacheable: " + key)
+		h.logger.Debug("response is uncacheable: " + key)
 	} else {
 		// Cache recoded buf to the backend
 		response := string(buf.Bytes())
 		if err := backend.put(key, response); err != nil {
 			h.logger.Warn("caching failed: "+key, zap.Error(err))
 		} else {
-			h.logger.Info("put cache: " + key)
+			h.logger.Debug("put cache: " + key)
 		}
 	}
 
@@ -260,23 +260,23 @@ func (h Handler) isFresh(header http.Header) bool {
 	cc := header.Get("Cache-Control")
 	if cc == "" {
 		// Cache-Control directive is not provided.
-		h.logger.Info("stored cache has no Cache-Control header")
+		h.logger.Debug("stored cache has no Cache-Control header")
 		return true
 	}
 	submatch := sMaxAge.FindStringSubmatch(cc)
 	if len(submatch) != 2 {
-		h.logger.Info("Cache-Control has no s-maxage")
+		h.logger.Debug("Cache-Control has no s-maxage")
 		return true
 	}
 	maxAgeStr := submatch[1]
 	if maxAgeInt, err = strconv.ParseUint(maxAgeStr, 10, 32); err != nil {
-		h.logger.Info("parsing " + maxAgeStr + " failed")
+		h.logger.Debug("parsing " + maxAgeStr + " failed")
 		return true
 	}
 
 	dateHeader := header.Get("Date")
 	if dateHeader == "" {
-		h.logger.Info("Date header is missing")
+		h.logger.Debug("Date header is missing")
 		return true
 	}
 
@@ -285,7 +285,7 @@ func (h Handler) isFresh(header http.Header) bool {
 		date, err = time.Parse(legacyTimeFormat, dateHeader)
 	}
 	if err != nil {
-		h.logger.Info("parsing " + dateHeader + " failed")
+		h.logger.Debug("parsing " + dateHeader + " failed")
 		return true
 	}
 	date = date.UTC()
