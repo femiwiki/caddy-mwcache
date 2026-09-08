@@ -38,6 +38,12 @@ var (
 	sMaxAge              = regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
 )
 
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
 const legacyTimeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
 func init() {
@@ -141,14 +147,9 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	// Cache hit, response with cache
 	h.logger.Info("cache hit: " + key)
 
-	pool := sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
-	buf := pool.Get().(*bytes.Buffer)
+	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer pool.Put(buf)
+	defer bufferPool.Put(buf)
 	buf.Write([]byte(val))
 
 	if err := h.writeResponse(w, buf, true); err != nil {
@@ -165,14 +166,9 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 }
 
 func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	pool := sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
-	buf := pool.Get().(*bytes.Buffer)
+	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer pool.Put(buf)
+	defer bufferPool.Put(buf)
 
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
