@@ -32,7 +32,7 @@ type metadata struct {
 
 var errStale = fmt.Errorf("stale")
 
-const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
+const legacyTimeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
 
 func init() {
 	caddy.RegisterModule(Handler{})
@@ -186,7 +186,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 			return false
 		}
 		if header.Get("Date") == "" {
-			header.Set("Date", time.Now().UTC().Format(timeFormat))
+			header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 		}
 		// Recode header to buf
 		err := gob.NewEncoder(buf).Encode(metadata{
@@ -278,7 +278,10 @@ func (h Handler) isFresh(header http.Header) bool {
 		return true
 	}
 
-	date, err = time.Parse(timeFormat, dateHeader)
+	date, err = http.ParseTime(dateHeader)
+	if err != nil {
+		date, err = time.Parse(legacyTimeFormat, dateHeader)
+	}
 	if err != nil {
 		h.logger.Info("parsing " + dateHeader + " failed")
 		return true
