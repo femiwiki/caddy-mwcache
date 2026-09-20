@@ -1,0 +1,38 @@
+name: Bump golangci-lint
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: femiwiki
+      repository: caddy-mwcache
+      branch: main
+      user: femiwiki-pat-owner[bot]
+      email: 204444552+femiwiki-pat-owner[bot]@users.noreply.github.com
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
+
+sources:
+  golangci-lint:
+    kind: githubrelease
+    spec:
+      owner: golangci
+      repository: golangci-lint
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
+
+targets:
+  ci:
+    name: 'ci: bump golangci-lint to {{ source "golangci-lint" }}'
+    kind: yaml
+    sourceid: golangci-lint
+    scmid: default
+    spec:
+      file: .github/workflows/ci.yml
+      key: $.jobs.lint-go.steps[2].with.version
+
+actions:
+  default:
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - dependencies
