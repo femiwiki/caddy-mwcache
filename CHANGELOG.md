@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.0...v0.1.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* stop returning EOF after an uncacheable response ([#122](https://github.com/femiwiki/caddy-mwcache/issues/122)) ([7ce0491](https://github.com/femiwiki/caddy-mwcache/commit/7ce049190416f6654d7e51daf4d8aa0693408802)), closes [#118](https://github.com/femiwiki/caddy-mwcache/issues/118)
+
 ## v0.1.0 - 2026-07-01
 
 - Drops supports for 'map' and 'badger' backend.
