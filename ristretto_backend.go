@@ -33,7 +33,7 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	for k := range rawOptions {
 		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
-			return fmt.Errorf("Unknown config: %s", k)
+			return fmt.Errorf("unknown config: %s", k)
 		}
 	}
 	return nil
@@ -87,7 +87,7 @@ func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, err
 
 func (m *RistrettoBackend) put(key string, val string) error {
 	if ok := m.cache.Set(key, val, 1); !ok {
-		return errors.New("Set was dropped")
+		return errors.New("set was dropped")
 	}
 	return nil
 }

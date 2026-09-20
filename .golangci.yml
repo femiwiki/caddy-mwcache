@@ -1,0 +1,47 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - cyclop
+    - funlen
+    - gocritic
+    - misspell
+    - nolintlint
+    - unconvert
+  settings:
+    cyclop:
+      # The most complex function in the tree is UnmarshalCaddyfile at 15.
+      max-complexity: 15
+    errcheck:
+      exclude-functions:
+        # Nothing can be reported to a client whose response already failed.
+        - (net/http.ResponseWriter).Write
+    funlen:
+      # The longest non-test function is serveAndCache at 53 lines,
+      # and the most statements are the 34 of parseRistrettoOptions.
+      lines: 55
+      statements: 35
+    gocritic:
+      disabled-checks:
+        # The single case is the only backend implemented so far, not a typo.
+        - singleCaseSwitch
+    govet:
+      enable:
+        - nilness
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    rules:
+      # Table-driven test cases are data, so their length says nothing.
+      - path: _test\.go
+        linters:
+          - funlen
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
