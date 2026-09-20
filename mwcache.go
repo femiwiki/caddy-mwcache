@@ -101,7 +101,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 			return nil
 		}
 		key := createKey(r)
-		backend.delete(key)
+		backend.delete(key) //nolint:errcheck // the purge response is 204 whether or not the key was held
 		h.logger.Info("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
 		w.Write([]byte("Purged"))
@@ -210,7 +210,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		h.logger.Info("response is uncacheable: " + key)
 	} else {
 		// Cache recoded buf to the backend
-		response := string(buf.Bytes())
+		response := buf.String()
 		if err := backend.put(key, response); err != nil {
 			return err
 		}
