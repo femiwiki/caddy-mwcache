@@ -15,5 +15,17 @@ jobs:
           application_id: ${{ vars.PAT_APPLICATION_ID }}
           application_private_key: ${{ secrets.PAT_APPLICATION_PRIVATE_KEY }}
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
           token: ${{ steps.get_workflow_token.outputs.token }}
+      - name: Ask docker-mediawiki to bump the caddy image
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+          PLUGIN: ${{ github.event.repository.name }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          gh api --method POST repos/femiwiki/docker-mediawiki/dispatches \
+            -f event_type=bump-caddy-plugin \
+            -f "client_payload[plugin]=$PLUGIN" \
+            -f "client_payload[version]=$TAG"
