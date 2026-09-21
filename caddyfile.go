@@ -10,11 +10,11 @@ import (
 )
 
 func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
-	h.config = Config{
+	h.Config = Config{
 		Backend:  "ristretto",
 		PurgeAcl: []string{"127.0.0.1"},
 	}
-	config = &h.config
+	c := &h.Config
 	for d.Next() {
 		if len(d.RemainingArgs()) == 1 {
 			switch d.Val() {
@@ -31,23 +31,23 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				// Use default backend
 				// Unmarshal block
 				if len(d.RemainingArgs()) != 1 {
-					config.RistrettoConfig = map[string]string{}
+					c.RistrettoConfig = map[string]string{}
 					for d.NextBlock(1) {
 						k := d.Val()
 						if !d.Next() {
 							return d.ArgErr()
 						}
-						config.RistrettoConfig[k] = d.Val()
+						c.RistrettoConfig[k] = d.Val()
 					}
 				}
 			case "purge_acl":
 				// TODO throw error when an empty block is given
-				config.PurgeAcl = nil
+				c.PurgeAcl = nil
 				if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
-					config.PurgeAcl = []string{d.Val()}
+					c.PurgeAcl = []string{d.Val()}
 				} else {
 					for d.NextBlock(1) {
-						config.PurgeAcl = append(config.PurgeAcl, d.Val())
+						c.PurgeAcl = append(c.PurgeAcl, d.Val())
 					}
 				}
 			default:
@@ -60,15 +60,14 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 // Validate implements caddy.Validator.
 func (h *Handler) Validate() error {
-	h.config = *config
-	if config.Backend == "" {
+	if h.Config.Backend == "" {
 		return fmt.Errorf("no backend")
 	}
-	if config.PurgeAcl == nil {
+	if h.Config.PurgeAcl == nil {
 		return fmt.Errorf("no purge acl")
 	}
-	if config.RistrettoConfig != nil {
-		if err := ValidateRistrettoConfig(config.RistrettoConfig); err != nil {
+	if h.Config.RistrettoConfig != nil {
+		if err := ValidateRistrettoConfig(h.Config.RistrettoConfig); err != nil {
 			return err
 		}
 	}
@@ -79,14 +78,11 @@ func (h *Handler) Validate() error {
 func (h *Handler) Provision(ctx caddy.Context) error {
 	h.logger = ctx.Logger(h)
 	h.logger.Info("logger is created")
-	switch config.Backend {
-	case "ristretto":
-		b, err := newRistrettoBackend(config.RistrettoConfig)
-		if err != nil {
-			return err
-		}
-		backend = b
+	b, err := sharedBackend(h.Config)
+	if err != nil {
+		return err
 	}
+	h.backend = b
 	return nil
 }
 
