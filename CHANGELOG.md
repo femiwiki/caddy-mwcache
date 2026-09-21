@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.1...v0.1.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* load the config from the handler instead of a package variable ([#126](https://github.com/femiwiki/caddy-mwcache/issues/126)) ([3762f29](https://github.com/femiwiki/caddy-mwcache/commit/3762f29b35fb90fa7eaa76adef39cdfdd2648a3b)), closes [#119](https://github.com/femiwiki/caddy-mwcache/issues/119)
+
 ## [0.1.1](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.0...v0.1.1) (2026-09-20)
 
 
