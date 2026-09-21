@@ -215,9 +215,10 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	// Cache recoded buf to the backend
 	response := buf.String()
 	if err := backend.put(key, response); err != nil {
-		return err
+		h.logger.Warn("caching failed: "+key, zap.Error(err))
+	} else {
+		h.logger.Info("put cache: " + key)
 	}
-	h.logger.Info("put cache: " + key)
 
 	return h.writeResponse(w, buf, false)
 }
