@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"regexp"
@@ -19,11 +20,38 @@ import (
 	"go.uber.org/zap"
 )
 
-// backend and config are global to preserve the cache between reloads
+// The backend is global so that the cache survives a config reload and every
+// server block purges the same entries. It is created once and reused unless
+// the requested backend options change.
 var (
-	backend Backend
-	config  *Config
+	backendMu      sync.Mutex
+	backend        Backend
+	backendName    string
+	backendOptions map[string]string
 )
+
+func sharedBackend(c Config) (Backend, error) {
+	backendMu.Lock()
+	defer backendMu.Unlock()
+	if backend != nil && backendName == c.Backend && maps.Equal(backendOptions, c.RistrettoConfig) {
+		return backend, nil
+	}
+	switch c.Backend {
+	case "":
+		return nil, fmt.Errorf("no backend")
+	case "ristretto":
+		b, err := newRistrettoBackend(c.RistrettoConfig)
+		if err != nil {
+			return nil, err
+		}
+		backend = b
+	default:
+		return nil, fmt.Errorf("unknown backend: %s", c.Backend)
+	}
+	backendName = c.Backend
+	backendOptions = maps.Clone(c.RistrettoConfig)
+	return backend, nil
+}
 
 type metadata struct {
 	Header http.Header
@@ -40,8 +68,13 @@ func init() {
 }
 
 type Handler struct {
-	logger *zap.Logger
-	config Config
+	logger  *zap.Logger
+	backend Backend
+	// Config is exported so that it survives the trip through the adapted
+	// JSON. A config that is loaded as JSON, by `caddy run --config caddy.json`
+	// or by POSTing it to /load, never runs the Caddyfile adapter, so the
+	// handler has to carry its own options.
+	Config Config `json:"config"`
 }
 
 type Config struct {
@@ -85,7 +118,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	case "PURGE":
 		// Check Domain against purge acl
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
-		acl := config.PurgeAcl
+		acl := h.Config.PurgeAcl
 		found := false
 		for _, cidr := range acl {
 			if CIDRContainsIP(cidr, r.RemoteAddr) {
@@ -101,7 +134,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 			return nil
 		}
 		key := createKey(r)
-		backend.delete(key) //nolint:errcheck // the purge response is 204 whether or not the key was held
+		h.backend.delete(key) //nolint:errcheck // the purge response is 204 whether or not the key was held
 		h.logger.Info("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
 		w.Write([]byte("Purged"))
@@ -121,7 +154,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 		return next.ServeHTTP(w, r)
 	}
 	key := createKey(r)
-	val, err := backend.get(key)
+	val, err := h.backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
 			h.logger.Info("cache miss: " + key)
@@ -214,7 +247,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 
 	// Cache recoded buf to the backend
 	response := buf.String()
-	if err := backend.put(key, response); err != nil {
+	if err := h.backend.put(key, response); err != nil {
 		return err
 	}
 	h.logger.Info("put cache: " + key)
