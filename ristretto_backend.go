@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/stoewer/go-strcase"
@@ -15,6 +16,9 @@ type RistrettoBackend struct {
 }
 
 func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error) {
+	if err := ValidateRistrettoConfig(rawOptions); err != nil {
+		return nil, err
+	}
 	opt, err := parseRistrettoOptions(rawOptions)
 	if err != nil {
 		return nil, err
@@ -27,6 +31,11 @@ func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error
 	return &RistrettoBackend{cache}, nil
 }
 
+// ristretto.NewCache rejects a zero NumCounters, MaxCost or BufferItems, and
+// how big the cache should be is not something this plugin can guess, so the
+// Caddyfile has to say. See #127.
+var requiredRistrettoOptions = []string{"num_counters", "max_cost", "buffer_items"}
+
 // TODO
 func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	optionReflect := reflect.ValueOf(ristretto.Config{})
@@ -35,6 +44,15 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 		if !optionReflect.FieldByName(k).IsValid() {
 			return fmt.Errorf("unknown config: %s", k)
 		}
+	}
+	var missing []string
+	for _, k := range requiredRistrettoOptions {
+		if rawOptions[k] == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) != 0 {
+		return fmt.Errorf("the ristretto block must set %s", strings.Join(missing, ", "))
 	}
 	return nil
 }

@@ -66,7 +66,7 @@ func (h *Handler) Validate() error {
 	if h.Config.PurgeAcl == nil {
 		return fmt.Errorf("no purge acl")
 	}
-	if h.Config.RistrettoConfig != nil {
+	if h.Config.Backend == "ristretto" {
 		if err := ValidateRistrettoConfig(h.Config.RistrettoConfig); err != nil {
 			return err
 		}

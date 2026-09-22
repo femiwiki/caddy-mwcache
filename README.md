@@ -9,25 +9,25 @@ caddy-mwcache is a cache plugin for [MediaWiki].
 ### Usage
 ```caddyfile
 example.com {
-    mwcache
+    mwcache {
+        ristretto {
+            num_counters 100000
+            max_cost 10000
+            buffer_items 64
+        }
+    }
 }
 ```
 
-Currently, only "ristretto" backend is supported and used by default.
-
-```caddyfile
-# Default value
-mwcache {
-    ristretto
-    purge_acl 127.0.0.1
-}
-```
+Currently, only "ristretto" backend is supported and used by default. It has no
+default size, so the ristretto block must set `num_counters`, `max_cost` and
+`buffer_items`.
 
 - **ristretto** is also used as a block to configure backend. Configuration keys
   are snake case versions of fields of [Ristretto's Config struct]. But it is
   limited to only primitive types(bool, int, string, etc).
 - **purge_acl** is either a single item or a list of CIDRs or IP addresses that
-  are allowed to request to purge cache.
+  are allowed to request to purge cache. It defaults to `127.0.0.1`.
 
 ```caddyfile
 mwcache {
