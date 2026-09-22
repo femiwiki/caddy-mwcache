@@ -17,11 +17,13 @@ func TestDirectives(t *testing.T) {
 		acl       []string
 		ristretto map[string]string
 	}{
+		// The ristretto backend has no default size, so a bare directive is
+		// rejected instead of failing when the cache is built. See #127.
 		{
 			caddyfile: `mwcache`,
-			valid:     true,
-			backend:   "ristretto",
-			acl:       []string{"127.0.0.1"},
+			valid:     false,
+			backend:   "",
+			acl:       nil,
 			ristretto: nil,
 		},
 		{
@@ -34,17 +36,27 @@ func TestDirectives(t *testing.T) {
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl 11.11.11.11
 			}
 			`,
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl {
 					11.11.11.11
 					11.11.11.12
@@ -54,11 +66,16 @@ func TestDirectives(t *testing.T) {
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11", "11.11.11.12"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl {
 					11.11.11.11
 					11.11.11.12
@@ -70,7 +87,7 @@ func TestDirectives(t *testing.T) {
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11", "11.11.11.12", "11.11.11.13", "11.11.11.14"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		// TODO
 		// {
@@ -103,6 +120,9 @@ func TestDirectives(t *testing.T) {
 		d := caddyfile.NewTestDispenser(test.caddyfile)
 		m := &Handler{}
 		err := m.UnmarshalCaddyfile(d)
+		if err == nil {
+			err = m.Validate()
+		}
 		if test.valid && err != nil {
 			t.Errorf("Test %d: error = %v", i, err)
 		}
@@ -220,5 +240,39 @@ func TestBackendIsCreatedOnce(t *testing.T) {
 	}
 	if first.backend == reconfigured.backend {
 		t.Error("The backend should be rebuilt when its options change")
+	}
+}
+
+// Leaving a required ristretto option out is a config error that names what is
+// missing, on both of the paths Caddy takes. See #127.
+func TestRistrettoOptionsAreRequired(t *testing.T) {
+	d := caddyfile.NewTestDispenser(`
+	mwcache {
+		ristretto {
+			num_counters 100000
+		}
+	}
+	`)
+	h := &Handler{}
+	if err := h.UnmarshalCaddyfile(d); err != nil {
+		t.Fatalf("UnmarshalCaddyfile: %v", err)
+	}
+
+	err := h.Validate()
+	if err == nil {
+		t.Fatal("Error should be thrown")
+	}
+	for _, k := range []string{"max_cost", "buffer_items"} {
+		if !strings.Contains(err.Error(), k) {
+			t.Errorf("Expected the error to name '%s' but got '%s'", k, err)
+		}
+	}
+	if strings.Contains(err.Error(), "num_counters") {
+		t.Errorf("Expected the error to leave 'num_counters' out but got '%s'", err)
+	}
+
+	// Caddy provisions before it validates, so the backend has to refuse it too.
+	if err := h.Provision(caddy.Context{}); err == nil {
+		t.Error("Error should be thrown")
 	}
 }
