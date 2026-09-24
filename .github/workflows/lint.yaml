@@ -1,3 +1,4 @@
+---
 name: Lint
 
 on:
@@ -8,6 +9,50 @@ on:
 permissions: {}
 
 jobs:
+  caddy-fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - name: Format caddyfile
+        run: |
+          find . -name Caddyfile -o -name '*.Caddyfile' | while read -r CADDYFILE_PATH; do
+            docker run --rm -v "$(dirname "$(realpath "$CADDYFILE_PATH")")":/srv caddy \
+              caddy fmt --diff "/srv/$(basename "$CADDYFILE_PATH")"
+          done
+
+  rumdl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: rvben/rumdl@5606c5d6cbbfa8d61c2f23206d42aa6457ddd301  # v0.2.68
+        with:
+          version: 0.2.68
+
+  yamllint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.x'
+      - run: pip install yamllint==1.38.0
+      - run: yamllint --strict .
+
   biome:
     runs-on: ubuntu-latest
     timeout-minutes: 5

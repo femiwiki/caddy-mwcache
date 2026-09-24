@@ -1,12 +1,13 @@
-caddy-mwcache
-========
+# caddy-mwcache
+
 [![go doc badge]][go doc link]
 [![Github checks status]][github checks link]
 [![codecov.io status]][codecov.io link]
 
 caddy-mwcache is a cache plugin for [MediaWiki].
 
-### Usage
+## Usage
+
 ```caddyfile
 example.com {
     mwcache
@@ -47,7 +48,8 @@ mwcache {
 }
 ```
 
-### Configuring MediaWiki
+## Configuring MediaWiki
+
 > **WARNING**: If you are using php-curl extension with curl ≥7.62, you cannot
 > use this plugin due to MediaWiki's bug [T264735].
 
@@ -61,7 +63,8 @@ $wgCdnServers = '127.0.0.1';
 $wgInternalServer = 'http://127.0.0.1';
 ```
 
-### Build
+## Build
+
 Prerequisites:
 
 - Go
@@ -78,7 +81,8 @@ xcaddy build \
   --with github.com/femiwiki/caddy-mwcache
 ```
 
-### Development
+## Development
+
 Use [docker-compose] to setup test environment.
 
 ```bash
