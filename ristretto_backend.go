@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/stoewer/go-strcase"
 )
 
 type RistrettoBackend struct {
-	cache *ristretto.Cache
+	cache *ristretto.Cache[string, string]
 }
 
 func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error) {
@@ -29,7 +29,7 @@ func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error
 
 // TODO
 func ValidateRistrettoConfig(rawOptions map[string]string) error {
-	optionReflect := reflect.ValueOf(ristretto.Config{})
+	optionReflect := reflect.ValueOf(ristretto.Config[string, string]{})
 	for k := range rawOptions {
 		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
@@ -40,8 +40,8 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 }
 
 // TODO
-func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, error) {
-	c := ristretto.Config{}
+func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config[string, string], error) {
+	c := ristretto.Config[string, string]{}
 	optionsReflect := reflect.ValueOf(&c)
 	for k, strV := range rawOptions {
 		k = strcase.UpperCamelCase(k)
@@ -97,7 +97,7 @@ func (m *RistrettoBackend) get(key string) (string, error) {
 	if !ok {
 		return "", ErrKeyNotFound
 	}
-	return val.(string), nil
+	return val, nil
 }
 
 func (m *RistrettoBackend) delete(key string) error {
