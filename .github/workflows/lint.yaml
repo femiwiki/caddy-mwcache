@@ -63,3 +63,21 @@ jobs:
         with:
           version: latest
       - run: biome ci
+
+  parallel-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          persist-credentials: false
+      - env:
+          PARALLEL_LINT_VERSION: v1.4.0
+          PARALLEL_LINT_SHA256: 7f584ddcb39e36ea491b3fbca133abeb623c1a26d90ef44c494379025c233ce5
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/parallel-lint.phar" \
+            "https://github.com/php-parallel-lint/PHP-Parallel-Lint/releases/download/$PARALLEL_LINT_VERSION/parallel-lint.phar"
+          echo "$PARALLEL_LINT_SHA256  $RUNNER_TEMP/parallel-lint.phar" | sha256sum --check
+          php "$RUNNER_TEMP/parallel-lint.phar" .
