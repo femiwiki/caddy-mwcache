@@ -41,7 +41,10 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 
 // TODO
 func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, error) {
-	c := ristretto.Config{}
+	// On by default so the counters exist to be scraped; an explicit
+	// `metrics false` in the Caddyfile still wins, since rawOptions is
+	// applied over this.
+	c := ristretto.Config{Metrics: true}
 	optionsReflect := reflect.ValueOf(&c)
 	for k, strV := range rawOptions {
 		k = strcase.UpperCamelCase(k)
