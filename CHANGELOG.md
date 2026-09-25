@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.2...v0.2.0) (2026-09-25)
+
+
+### Features
+
+* report the cache's counters as Caddy metrics ([#139](https://github.com/femiwiki/caddy-mwcache/issues/139)) ([cbdb904](https://github.com/femiwiki/caddy-mwcache/commit/cbdb9044d0a39a16a285a9e13eadef5442d685bf))
+
 ## [0.1.2](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.1...v0.1.2) (2026-09-21)
 
 
