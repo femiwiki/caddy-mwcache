@@ -83,6 +83,7 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		return err
 	}
 	h.backend = b
+	registerMetrics(ctx.GetMetricsRegistry(), h.logger)
 	return nil
 }
 
