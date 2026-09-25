@@ -1,0 +1,14 @@
+{
+	"require-dev": {
+		"mediawiki/mediawiki-codesniffer": "52.0.1"
+	},
+	"scripts": {
+		"fix": "phpcbf",
+		"test": "phpcs"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	}
+}

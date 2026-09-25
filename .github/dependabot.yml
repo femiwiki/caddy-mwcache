@@ -19,6 +19,15 @@ updates:
     cooldown:
       default-days: 7
 
+  - package-ecosystem: "composer"
+    directory: "/example"
+    schedule:
+      interval: monthly
+    reviewers:
+      - 'femiwiki/reviewer'
+    cooldown:
+      default-days: 7
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
