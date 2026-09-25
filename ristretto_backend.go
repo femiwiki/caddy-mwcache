@@ -3,6 +3,7 @@ package mwcache
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 
@@ -12,10 +13,18 @@ import (
 
 type RistrettoBackend struct {
 	cache *ristretto.Cache
+	// Set when the Caddyfile asked for max_cost_bytes, which is what makes an
+	// entry cost the space it takes rather than one of however many the cache
+	// holds.
+	costInBytes bool
 }
 
 func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error) {
-	opt, err := parseRistrettoOptions(rawOptions)
+	options, costInBytes, err := readCostOption(rawOptions)
+	if err != nil {
+		return nil, err
+	}
+	opt, err := parseRistrettoOptions(options)
 	if err != nil {
 		return nil, err
 	}
@@ -24,13 +33,40 @@ func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error
 		return nil, err
 	}
 
-	return &RistrettoBackend{cache}, nil
+	return &RistrettoBackend{cache: cache, costInBytes: costInBytes}, nil
+}
+
+// max_cost_bytes is ristretto's MaxCost spent in bytes. It is a second name
+// rather than a new meaning for max_cost, so a config written against an
+// earlier release keeps the cache it had: under max_cost an entry goes on
+// costing 1, and the number goes on meaning entries.
+const (
+	costKey      = "max_cost"
+	costBytesKey = "max_cost_bytes"
+)
+
+func readCostOption(rawOptions map[string]string) (map[string]string, bool, error) {
+	v, inBytes := rawOptions[costBytesKey]
+	if !inBytes {
+		return rawOptions, false, nil
+	}
+	if _, also := rawOptions[costKey]; also {
+		return nil, false, fmt.Errorf("%s and %s are the same budget; say one", costKey, costBytesKey)
+	}
+	options := maps.Clone(rawOptions)
+	delete(options, costBytesKey)
+	options[costKey] = v
+	return options, true, nil
 }
 
 // TODO
 func ValidateRistrettoConfig(rawOptions map[string]string) error {
+	options, _, err := readCostOption(rawOptions)
+	if err != nil {
+		return err
+	}
 	optionReflect := reflect.ValueOf(ristretto.Config{})
-	for k := range rawOptions {
+	for k := range options {
 		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
 			return fmt.Errorf("unknown config: %s", k)
@@ -89,10 +125,20 @@ func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, err
 }
 
 func (m *RistrettoBackend) put(key string, val string) error {
-	if ok := m.cache.Set(key, val, 1); !ok {
+	cost := int64(1)
+	if m.costInBytes {
+		cost = int64(len(val))
+	}
+	if ok := m.cache.Set(key, val, cost); !ok {
 		return errors.New("set was dropped")
 	}
 	return nil
+}
+
+// wait blocks until the entries passed to put have been applied, which
+// ristretto does asynchronously. Only tests need it.
+func (m *RistrettoBackend) wait() {
+	m.cache.Wait()
 }
 
 func (m *RistrettoBackend) get(key string) (string, error) {
