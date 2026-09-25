@@ -3,3 +3,4 @@
 /coverage.txt
 .cache/
 /.venv/
+/example/vendor/
