@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.2.0...v0.3.0) (2026-09-25)
+
+
+### Features
+
+* add max_cost_bytes, a budget spent in bytes ([#141](https://github.com/femiwiki/caddy-mwcache/issues/141)) ([cd21b0f](https://github.com/femiwiki/caddy-mwcache/commit/cd21b0ff613f928ab3787e617131d4ecf915c608))
+
 ## [0.2.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.1.2...v0.2.0) (2026-09-25)
 
 
