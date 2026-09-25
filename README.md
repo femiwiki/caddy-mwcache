@@ -29,12 +29,19 @@ mwcache {
   limited to only primitive types(bool, int, string, etc).
 - **purge_acl** is either a single item or a list of CIDRs or IP addresses that
   are allowed to request to purge cache.
+- **max_cost_bytes** spends ristretto's `MaxCost` in bytes, by costing an entry
+  at the size of what is stored. **max_cost** keeps its own meaning, a count of
+  entries, since an entry costs 1 under it; saying both is an error. ristretto
+  refuses an entry whose cost is above the whole budget, so a byte budget below
+  one response caches nothing. `num_counters` is a count either way, and wants
+  to be roughly ten times the entries the cache holds.
 
 ```caddyfile
 mwcache {
     ristretto {
         num_counters <value>
         max_cost <value>
+        max_cost_bytes <value>
         buffer_items <value>
         <additional config key1> <value1>
         <additional config key2> <value2>
