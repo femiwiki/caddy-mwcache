@@ -18,14 +18,3 @@ jobs:
         id: release
         with:
           token: ${{ steps.get_workflow_token.outputs.token }}
-      - name: Ask docker-mediawiki to bump the caddy image
-        if: steps.release.outputs.release_created == 'true'
-        env:
-          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
-          PLUGIN: ${{ github.event.repository.name }}
-          TAG: ${{ steps.release.outputs.tag_name }}
-        run: |
-          gh api --method POST repos/femiwiki/docker-mediawiki/dispatches \
-            -f event_type=bump-caddy-plugin \
-            -f "client_payload[plugin]=$PLUGIN" \
-            -f "client_payload[version]=$TAG"
