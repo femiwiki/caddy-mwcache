@@ -55,6 +55,34 @@ mwcache {
 }
 ```
 
+## Static files
+
+A `static` block sets `Cache-Control` on files `file_server` reads off disk,
+the way Wikimedia's [static.php] does. MediaWiki links a file under
+`resources/`, `skins/` and `extensions/` with the first five hex digits of its
+md5 as the query, such as `icon.svg?6a22e`.
+
+- The query is the file's hash: a year, `immutable`.
+- The query looks like a hash but is not this file's: a minute. This is the URL
+  a new stylesheet asks for while an older server is still answering.
+- Anything else: `unversioned_max_age`.
+
+Only 2xx and 304 responses from a regular file are touched, never a `.php`
+file, and the page cache does not store them. Without the block nothing
+changes.
+
+```caddyfile
+mwcache {
+    static {
+        # Defaults, as static.php has them
+        paths /resources/* /skins/* /extensions/*
+        versioned_max_age 365d
+        unversioned_max_age 365d
+        mismatch_max_age 1m
+    }
+}
+```
+
 ## Configuring MediaWiki
 
 > **WARNING**: If you are using php-curl extension with curl ≥7.62, you cannot
@@ -132,6 +160,7 @@ terms of the [GNU Affero General Public License v3.0] or any later version. See
 
 [mediawiki]: https://www.mediawiki.org
 [Ristretto's Config struct]: https://pkg.go.dev/github.com/dgraph-io/ristretto#Config
+[static.php]: https://github.com/wikimedia/operations-mediawiki-config/blob/63f500d0e9d7a01855395347c8b10c5ea9bcd90f/w/static.php
 [T264735]: https://phabricator.wikimedia.org/T264735
 [localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php
 [xcaddy]: https://github.com/caddyserver/xcaddy

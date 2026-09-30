@@ -81,6 +81,7 @@ type Config struct {
 	Backend         string            `json:"backend,omitempty"`
 	PurgeAcl        []string          `json:"purge_acl,omitempty"`
 	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
+	Static          *StaticConfig     `json:"static,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -114,6 +115,9 @@ func CIDRContainsIP(cidr string, needleStr string) bool {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	if s := h.Config.Static; s != nil && s.matches(r) {
+		return s.serve(w, r, next)
+	}
 	switch r.Method {
 	case "PURGE":
 		// Check Domain against purge acl
