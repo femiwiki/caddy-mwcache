@@ -29,17 +29,15 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			switch d.Val() {
 			case "ristretto":
 				// Use default backend
-				// Unmarshal block
-				if len(d.RemainingArgs()) != 1 {
-					c.RistrettoConfig = map[string]string{}
-					for d.NextBlock(1) {
-						k := d.Val()
-						if !d.Next() {
-							return d.ArgErr()
-						}
-						c.RistrettoConfig[k] = d.Val()
-					}
+				if err := unmarshalRistretto(d, c); err != nil {
+					return err
 				}
+			case "static":
+				s, err := unmarshalStatic(d)
+				if err != nil {
+					return err
+				}
+				c.Static = s
 			case "purge_acl":
 				// TODO throw error when an empty block is given
 				c.PurgeAcl = nil
@@ -58,6 +56,21 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
+func unmarshalRistretto(d *caddyfile.Dispenser, c *Config) error {
+	if len(d.RemainingArgs()) == 1 {
+		return nil
+	}
+	c.RistrettoConfig = map[string]string{}
+	for d.NextBlock(1) {
+		k := d.Val()
+		if !d.Next() {
+			return d.ArgErr()
+		}
+		c.RistrettoConfig[k] = d.Val()
+	}
+	return nil
+}
+
 // Validate implements caddy.Validator.
 func (h *Handler) Validate() error {
 	if h.Config.Backend == "" {
@@ -71,6 +84,9 @@ func (h *Handler) Validate() error {
 			return err
 		}
 	}
+	if h.Config.Static != nil {
+		return h.Config.Static.validate()
+	}
 	return nil
 }
 
@@ -83,6 +99,11 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		return err
 	}
 	h.backend = b
+	if h.Config.Static != nil {
+		if err := h.Config.Static.provision(ctx); err != nil {
+			return err
+		}
+	}
 	registerMetrics(ctx.GetMetricsRegistry(), h.logger)
 	return nil
 }
