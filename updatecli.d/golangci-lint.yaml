@@ -27,7 +27,7 @@ targets:
     sourceid: golangci-lint
     scmid: default
     spec:
-      file: .github/workflows/ci.yml
+      file: .github/workflows/lint.yml
       key: $.jobs.lint-go.steps[2].with.version
 
 actions:
