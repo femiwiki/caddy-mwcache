@@ -2,6 +2,7 @@ package mwcache
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -182,7 +183,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	defer pool.Put(buf)
 	buf.Write([]byte(val))
 
-	if err := h.writeResponse(w, buf, true); err != nil {
+	if err := h.writeResponse(w, r, buf, true); err != nil {
 		if err == errStale {
 			h.logger.Info("staled, drop: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
@@ -205,6 +206,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	buf.Reset()
 	defer pool.Put(buf)
 
+	var meta metadata
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
 		// TODO research cache spec for MediaWiki
 		if status < 200 || status >= 400 ||
@@ -225,17 +227,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		if header.Get("Date") == "" {
 			header.Set("Date", time.Now().UTC().Format(timeFormat))
 		}
-		// Recode header to buf
-		err := gob.NewEncoder(buf).Encode(metadata{
-			Header: header,
-			Status: status,
-		})
-		if err != nil {
-			h.logger.Error("", zap.Error(err))
-			return false
-		}
-
-		// Body is recoded implicitly by the recoder
+		meta = metadata{Header: header.Clone(), Status: status}
 		return true
 	})
 
@@ -249,17 +241,73 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		return nil
 	}
 
-	// Cache recoded buf to the backend
-	response := buf.String()
-	if err := h.backend.put(key, response); err != nil {
+	entry, err := newEntry(meta, buf.Bytes())
+	if err != nil {
+		return err
+	}
+	if err := h.backend.put(key, entry.String()); err != nil {
 		return err
 	}
 	h.logger.Info("put cache: " + key)
 
-	return h.writeResponse(w, buf, false)
+	return h.writeResponse(w, r, entry, false)
 }
 
-func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCache bool) error {
+// newEntry stores the body compressed: an entry takes a fifth of the space,
+// and a hit no longer pays the encode handler to compress it again.
+func newEntry(meta metadata, body []byte) (*bytes.Buffer, error) {
+	if meta.Header.Get("Content-Encoding") == "" {
+		compressed, err := gzipBytes(body)
+		if err != nil {
+			return nil, err
+		}
+		body = compressed
+		meta.Header.Set("Content-Encoding", "gzip")
+		meta.Header.Del("Content-Length")
+		if !strings.Contains(strings.ToLower(meta.Header.Get("Vary")), "accept-encoding") {
+			meta.Header.Add("Vary", "Accept-Encoding")
+		}
+	}
+	entry := new(bytes.Buffer)
+	if err := gob.NewEncoder(entry).Encode(meta); err != nil {
+		return nil, err
+	}
+	entry.Write(body)
+	return entry, nil
+}
+
+func gzipBytes(b []byte) ([]byte, error) {
+	out := new(bytes.Buffer)
+	zw := gzip.NewWriter(out)
+	if _, err := zw.Write(b); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+// acceptsGzip reports whether the client listed gzip, or *, in Accept-Encoding
+// with a q above zero.
+func acceptsGzip(r *http.Request) bool {
+	for _, part := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
+		name, params, _ := strings.Cut(part, ";")
+		name = strings.ToLower(strings.TrimSpace(name))
+		if name != "gzip" && name != "*" {
+			continue
+		}
+		q, found := strings.CutPrefix(strings.TrimSpace(params), "q=")
+		if !found {
+			return true
+		}
+		v, err := strconv.ParseFloat(q, 64)
+		return err == nil && v > 0
+	}
+	return false
+}
+
+func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *bytes.Buffer, fromCache bool) error {
 	header := w.Header()
 
 	var meta metadata
@@ -270,14 +318,29 @@ func (h Handler) writeResponse(w http.ResponseWriter, buf *bytes.Buffer, fromCac
 		return errStale
 	}
 
-	// Write header
+	var body io.Reader = buf
+	if meta.Header.Get("Content-Encoding") == "gzip" && !acceptsGzip(r) {
+		zr, err := gzip.NewReader(buf)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = zr.Close() }()
+		body = zr
+		meta.Header.Del("Content-Encoding")
+		meta.Header.Del("Content-Length")
+	}
+
+	// Write header. The two that describe the body come only from the entry,
+	// since on a miss the writer still holds what the upstream sent.
+	header.Del("Content-Encoding")
+	header.Del("Content-Length")
 	for k, v := range meta.Header {
 		header[k] = v
 	}
 	w.WriteHeader(meta.Status)
 
 	// Write body
-	if _, err := io.Copy(w, buf); err != nil {
+	if _, err := io.Copy(w, body); err != nil {
 		return err
 	}
 	return nil

@@ -36,6 +36,10 @@ mwcache {
   one response caches nothing. `num_counters` is a count either way, and wants
   to be roughly ten times the entries the cache holds.
 
+Pages are stored gzipped, so what is stored is the compressed size. A client
+that accepts gzip gets the stored bytes as they are, which `encode` passes
+through untouched; any other client gets them decompressed.
+
 ```caddyfile
 mwcache {
     ristretto {
