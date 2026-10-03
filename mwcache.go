@@ -235,7 +235,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	if err := next.ServeHTTP(rec, r); err != nil {
 		return err
 	}
-	if !rec.Buffered() || buf.Len() == 0 {
+	if !rec.Buffered() {
 		// The recorder streamed the response through, so there is nothing left to write
 		h.logger.Info("response is uncacheable: " + key)
 		return nil
@@ -256,7 +256,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 // newEntry stores the body compressed: an entry takes a fifth of the space,
 // and a hit no longer pays the encode handler to compress it again.
 func newEntry(meta metadata, body []byte) (*bytes.Buffer, error) {
-	if meta.Header.Get("Content-Encoding") == "" {
+	if meta.Header.Get("Content-Encoding") == "" && len(body) > 0 {
 		compressed, err := gzipBytes(body)
 		if err != nil {
 			return nil, err
