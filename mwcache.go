@@ -404,16 +404,22 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
-	// don't cache request with session or token cookie
-	// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
-	cookie := r.Header.Get("Cookie")
-	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err == nil && match {
+	if hasSessionCookie(r) {
 		return false
 	}
 	if key := createKey(r); key == "" {
 		return false
 	}
 	return true
+}
+
+// hasSessionCookie reports whether the request carries a session or token
+// cookie, the way Wikimedia's Varnish tells a logged-in request apart.
+// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
+func hasSessionCookie(r *http.Request) bool {
+	cookie := r.Header.Get("Cookie")
+	match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie))
+	return err == nil && match
 }
 
 // Interface guards
