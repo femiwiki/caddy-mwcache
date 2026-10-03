@@ -443,8 +443,11 @@ func hasUserParam(rawQuery string) bool {
 }
 
 // hasSessionCookie reports whether the request carries a session or token
-// cookie, the way Wikimedia's Varnish tells a logged-in request apart.
-// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
+// cookie, the way Wikimedia's Varnish tells a logged-in request apart. It then
+// lets such requests share the anonymous entry unless the response varies on
+// Cookie.
+// https://github.com/wikimedia/operations-puppet/blob/ecfe533f59092e7728cac31873de9b022e9e72d5/modules/varnish/templates/text-frontend.inc.vcl.erb#L366-L389
+// https://github.com/wikimedia/operations-puppet/blob/ecfe533f59092e7728cac31873de9b022e9e72d5/modules/varnish/templates/text-frontend.inc.vcl.erb#L811-L828
 func hasSessionCookie(r *http.Request) bool {
 	cookie := r.Header.Get("Cookie")
 	match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie))
