@@ -197,6 +197,11 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 }
 
 func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	// A HEAD response has no body, and the key does not hold the method, so
+	// storing it would hand an empty body to every GET after it.
+	if r.Method == http.MethodHead {
+		return next.ServeHTTP(w, r)
+	}
 	pool := sync.Pool{
 		New: func() interface{} {
 			return new(bytes.Buffer)
@@ -340,6 +345,9 @@ func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byte
 	w.WriteHeader(meta.Status)
 
 	// Write body
+	if r.Method == http.MethodHead {
+		return nil
+	}
 	if _, err := io.Copy(w, body); err != nil {
 		return err
 	}
