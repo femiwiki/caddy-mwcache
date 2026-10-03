@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -404,13 +405,42 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
-	if hasSessionCookie(r) {
+	if r.URL.Path == loadPHPPath {
+		// load.php defines MW_NO_SESSION, so the session cookie cannot change
+		// what it sends, and a logged-in request shares the anonymous entry.
+		// Only the user= modules are a user's own.
+		if hasUserParam(r.URL.RawQuery) {
+			return false
+		}
+	} else if hasSessionCookie(r) {
 		return false
 	}
 	if key := createKey(r); key == "" {
 		return false
 	}
 	return true
+}
+
+// loadPHPPath is ResourceLoader's entry point with $wgScriptPath set to "".
+// Only this exact path is load.php; with $wgArticlePath = "/w/$1",
+// /w/load.php is a wiki page.
+const loadPHPPath = "/load.php"
+
+// hasUserParam reports whether any query key mentions user, such as user=,
+// user[]= or " user=". PHP trims and rewrites key names before ResourceLoader
+// reads them, so this matches loosely; no other key load.php reads has user
+// in its name. It splits on ; as well, in case arg_separator.input has it.
+func hasUserParam(rawQuery string) bool {
+	for _, pair := range strings.FieldsFunc(rawQuery, func(c rune) bool { return c == '&' || c == ';' }) {
+		key, _, _ := strings.Cut(pair, "=")
+		if k, err := url.QueryUnescape(key); err == nil {
+			key = k
+		}
+		if strings.Contains(strings.ToLower(key), "user") {
+			return true
+		}
+	}
+	return false
 }
 
 // hasSessionCookie reports whether the request carries a session or token
