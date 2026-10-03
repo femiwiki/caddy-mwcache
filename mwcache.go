@@ -325,12 +325,15 @@ func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byte
 
 	var body io.Reader = buf
 	if meta.Header.Get("Content-Encoding") == "gzip" && !acceptsGzip(r) {
-		zr, err := gzip.NewReader(buf)
-		if err != nil {
-			return err
+		// A HEAD writes no body, so it needs no reader.
+		if r.Method != http.MethodHead {
+			zr, err := gzip.NewReader(buf)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = zr.Close() }()
+			body = zr
 		}
-		defer func() { _ = zr.Close() }()
-		body = zr
 		meta.Header.Del("Content-Encoding")
 		meta.Header.Del("Content-Length")
 	}
