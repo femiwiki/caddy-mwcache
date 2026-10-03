@@ -29,6 +29,8 @@ func TestRequestIsCacheable(t *testing.T) {
 		{"/load.php?modules=user&User=Alice", sessionCookie, false},
 		{"/load.php?modules=user&user%zz=Alice", sessionCookie, false},
 		{"/load.php?modules=user;user=Alice", sessionCookie, false},
+		{"/load.php?modules=user&%75ser%00%zz=Alice", sessionCookie, false},
+		{"/load.php?modules=startup&x%zz=1", sessionCookie, false},
 		{"/w/load.php", sessionCookie, false},
 		{"/w/load.php", "", true},
 		{"/index.php/load.php", sessionCookie, false},
