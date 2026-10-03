@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -415,16 +416,53 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
-	// don't cache request with session or token cookie
-	// https://www.mediawiki.org/wiki/Manual:Varnish_caching#Configuring_Varnish
-	cookie := r.Header.Get("Cookie")
-	if match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie)); err == nil && match {
+	if r.URL.Path == loadPHPPath {
+		// load.php defines MW_NO_SESSION, so the session cookie cannot change
+		// what it sends, and a logged-in request shares the anonymous entry.
+		// Only the user= modules are a user's own.
+		if hasUserParam(r.URL.RawQuery) {
+			return false
+		}
+	} else if hasSessionCookie(r) {
 		return false
 	}
 	if key := createKey(r); key == "" {
 		return false
 	}
 	return true
+}
+
+// loadPHPPath is ResourceLoader's entry point with $wgScriptPath set to "".
+// Only this exact path is load.php; with $wgArticlePath = "/w/$1",
+// /w/load.php is a wiki page.
+const loadPHPPath = "/load.php"
+
+// hasUserParam reports whether any query key mentions user, such as user=,
+// user[]= or " user=". PHP trims and rewrites key names before ResourceLoader
+// reads them, so this matches loosely; no other key load.php reads has user
+// in its name. It splits on ; as well, in case arg_separator.input has it.
+// A key Go cannot decode counts as user, since PHP decodes it leniently.
+func hasUserParam(rawQuery string) bool {
+	for _, pair := range strings.FieldsFunc(rawQuery, func(c rune) bool { return c == '&' || c == ';' }) {
+		key, _, _ := strings.Cut(pair, "=")
+		key, err := url.QueryUnescape(key)
+		if err != nil || strings.Contains(strings.ToLower(key), "user") {
+			return true
+		}
+	}
+	return false
+}
+
+// hasSessionCookie reports whether the request carries a session or token
+// cookie, the way Wikimedia's Varnish tells a logged-in request apart. It then
+// lets such requests share the anonymous entry unless the response varies on
+// Cookie.
+// https://github.com/wikimedia/operations-puppet/blob/ecfe533f59092e7728cac31873de9b022e9e72d5/modules/varnish/templates/text-frontend.inc.vcl.erb#L366-L389
+// https://github.com/wikimedia/operations-puppet/blob/ecfe533f59092e7728cac31873de9b022e9e72d5/modules/varnish/templates/text-frontend.inc.vcl.erb#L811-L828
+func hasSessionCookie(r *http.Request) bool {
+	cookie := r.Header.Get("Cookie")
+	match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie))
+	return err == nil && match
 }
 
 // Interface guards
