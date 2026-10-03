@@ -51,4 +51,16 @@ func TestRedirectWithEmptyBody(t *testing.T) {
 	if calls != 1 {
 		t.Errorf("Expected one call upstream but got %d", calls)
 	}
+
+	req := httptest.NewRequest(http.MethodHead, "/", nil)
+	rec := httptest.NewRecorder()
+	if err := h.ServeHTTP(rec, req, upstream); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != "https://femiwiki.com/w/Main" {
+		t.Errorf("HEAD: got %d to %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if calls != 1 {
+		t.Errorf("HEAD: expected a cache hit but the upstream was called")
+	}
 }
