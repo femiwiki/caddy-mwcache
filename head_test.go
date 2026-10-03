@@ -43,7 +43,15 @@ func newHeadTest(t *testing.T, cacheControl string) *headTest {
 
 func (ht *headTest) serve(t *testing.T, method string) *httptest.ResponseRecorder {
 	t.Helper()
+	return ht.serveWith(t, method, "")
+}
+
+func (ht *headTest) serveWith(t *testing.T, method string, acceptEncoding string) *httptest.ResponseRecorder {
+	t.Helper()
 	req := httptest.NewRequest(method, headTestURL, nil)
+	if acceptEncoding != "" {
+		req.Header.Set("Accept-Encoding", acceptEncoding)
+	}
 	rec := httptest.NewRecorder()
 	if err := ht.h.ServeHTTP(rec, req, ht.next); err != nil {
 		t.Fatal(err)
@@ -76,12 +84,26 @@ func TestHeadIsServedFromTheCache(t *testing.T) {
 	ht := newHeadTest(t, "public, max-age=300, s-maxage=300")
 
 	ht.serve(t, http.MethodGet)
-	rec := ht.serve(t, http.MethodHead)
-	if rec.Body.Len() != 0 {
-		t.Errorf("HEAD: expected no body, got %d bytes", rec.Body.Len())
-	}
-	if got := rec.Header().Get("Content-Type"); got != "text/css; charset=utf-8" {
-		t.Errorf("HEAD: Content-Type %q", got)
+	for _, test := range []struct {
+		acceptEncoding  string
+		contentEncoding string
+	}{
+		{"", ""},
+		{"gzip", "gzip"},
+	} {
+		rec := ht.serveWith(t, http.MethodHead, test.acceptEncoding)
+		if rec.Body.Len() != 0 {
+			t.Errorf("HEAD %q: expected no body, got %d bytes", test.acceptEncoding, rec.Body.Len())
+		}
+		if got := rec.Header().Get("Content-Type"); got != "text/css; charset=utf-8" {
+			t.Errorf("HEAD %q: Content-Type %q", test.acceptEncoding, got)
+		}
+		if got := rec.Header().Get("Content-Encoding"); got != test.contentEncoding {
+			t.Errorf("HEAD %q: Content-Encoding %q, expected %q", test.acceptEncoding, got, test.contentEncoding)
+		}
+		if got := rec.Header().Get("Content-Length"); got != "" {
+			t.Errorf("HEAD %q: Content-Length %q", test.acceptEncoding, got)
+		}
 	}
 	if want := []string{http.MethodGet}; !slices.Equal(ht.calls, want) {
 		t.Errorf("expected upstream calls %v, got %v", want, ht.calls)
