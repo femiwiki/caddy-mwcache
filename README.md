@@ -59,6 +59,15 @@ mwcache {
 }
 ```
 
+## Logged-in requests
+
+A request with a session or token cookie (`([sS]ession|Token)=`) bypasses the
+cache, except for `/load.php`. load.php defines `MW_NO_SESSION`, so the cookie
+cannot change what it sends, and such a request reads and fills the same entry
+as an anonymous one. A load.php request with a `user` parameter always
+bypasses the cache. Only `/load.php` exactly counts, which is load.php with
+`$wgScriptPath = ""`.
+
 ## Static files
 
 A `static` block sets `Cache-Control` on files `file_server` reads off disk,
