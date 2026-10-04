@@ -22,8 +22,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// The backend is global so that the cache survives a config reload and every
-// server block purges the same entries. It is created once and reused unless
+// The backend is global so that the cache survives a config reload, and server
+// blocks that serve the same host purge the same entries. It is created once and reused unless
 // the requested backend options change.
 var (
 	backendMu      sync.Mutex
