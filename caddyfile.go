@@ -39,21 +39,25 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				c.Static = s
 			case "purge_acl":
-				// TODO throw error when an empty block is given
-				c.PurgeAcl = nil
-				if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
-					c.PurgeAcl = []string{d.Val()}
-				} else {
-					for d.NextBlock(1) {
-						c.PurgeAcl = append(c.PurgeAcl, d.Val())
-					}
-				}
+				unmarshalPurgeAcl(d, c)
 			default:
 				return d.ArgErr()
 			}
 		}
 	}
 	return nil
+}
+
+func unmarshalPurgeAcl(d *caddyfile.Dispenser, c *Config) {
+	// TODO throw error when an empty block is given
+	c.PurgeAcl = nil
+	if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
+		c.PurgeAcl = []string{d.Val()}
+	} else {
+		for d.NextBlock(1) {
+			c.PurgeAcl = append(c.PurgeAcl, d.Val())
+		}
+	}
 }
 
 func unmarshalRistretto(d *caddyfile.Dispenser, c *Config) error {
