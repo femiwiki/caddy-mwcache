@@ -438,6 +438,12 @@ func requestIsCacheable(r *http.Request) bool {
 	if _, _, ok := r.BasicAuth(); ok {
 		return false
 	}
+	// HTTP/2 does not check :authority, and a host with a slash in it would
+	// split the key at a different place, such as a/b.femiwiki.com/w/X
+	// against host a and path /b.femiwiki.com/w/X
+	if strings.Contains(r.Host, "/") {
+		return false
+	}
 	if r.URL.Path == loadPHPPath {
 		// load.php defines MW_NO_SESSION, so the session cookie cannot change
 		// what it sends, and a logged-in request shares the anonymous entry.

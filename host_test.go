@@ -118,3 +118,11 @@ func TestPurgeThroughAnAlias(t *testing.T) {
 		t.Errorf("expected upstream calls %v, got %v", want, ht.calls)
 	}
 }
+
+func TestHostWithSlashIsUncacheable(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/w/X", nil)
+	req.Host = "a/b.femiwiki.com"
+	if requestIsCacheable(req) {
+		t.Error("a host with a slash should bypass the cache")
+	}
+}
