@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.3.0...v1.0.0) (2026-10-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* a PURGE addressed to $wgInternalServer (127.0.0.1) no longer reaches entries stored under the public host. host_alias, in the next commit, maps it back.
+
+### Features
+
+* add a static block that caches static files by their version hash ([#160](https://github.com/femiwiki/caddy-mwcache/issues/160)) ([c38104e](https://github.com/femiwiki/caddy-mwcache/commit/c38104e85938f11d6475cc8007bef8ac2222f948)), closes [#159](https://github.com/femiwiki/caddy-mwcache/issues/159)
+* put the request's host in the cache key ([#171](https://github.com/femiwiki/caddy-mwcache/issues/171)) ([4dffb41](https://github.com/femiwiki/caddy-mwcache/commit/4dffb41d2f71f4334a0ae5fe3691a9042c0844fd))
+* serve load.php from the cache to requests with a session cookie ([#167](https://github.com/femiwiki/caddy-mwcache/issues/167)) ([485f578](https://github.com/femiwiki/caddy-mwcache/commit/485f5782fcdf8da87a7a12bab58022f2069485dc))
+* store pages gzipped ([#164](https://github.com/femiwiki/caddy-mwcache/issues/164)) ([88764d1](https://github.com/femiwiki/caddy-mwcache/commit/88764d100aa9c829c001d1c4c99ee40ff0c3ff93))
+
+
+### Bug Fixes
+
+* never store a HEAD response ([#169](https://github.com/femiwiki/caddy-mwcache/issues/169)) ([59521cb](https://github.com/femiwiki/caddy-mwcache/commit/59521cb029a570a016c0a9c9eefa6c7f82a1b84e))
+* write cached responses that have an empty body ([#166](https://github.com/femiwiki/caddy-mwcache/issues/166)) ([59f5bd6](https://github.com/femiwiki/caddy-mwcache/commit/59f5bd602d7269304a5277a6a2c4d72910948ac4))
+
 ## [0.3.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.2.0...v0.3.0) (2026-09-25)
 
 
