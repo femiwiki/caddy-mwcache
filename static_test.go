@@ -172,7 +172,7 @@ func TestHandlerStatic(t *testing.T) {
 		if cc := rec.Header().Get("Cache-Control"); cc != "public, s-maxage=31536000, max-age=31536000, immutable" {
 			t.Errorf("%s: Cache-Control %q", uri, cc)
 		}
-		if _, err := h.backend.get(createKey(req)); err != ErrKeyNotFound {
+		if _, err := h.backend.get(h.createKey(req)); err != ErrKeyNotFound {
 			t.Errorf("%s: the page cache stored a static file (err = %v)", uri, err)
 		}
 	}

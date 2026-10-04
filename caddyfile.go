@@ -38,6 +38,10 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 				c.Static = s
+			case "host_alias":
+				if err := unmarshalHostAlias(d, c); err != nil {
+					return err
+				}
 			case "purge_acl":
 				unmarshalPurgeAcl(d, c)
 			default:
@@ -58,6 +62,27 @@ func unmarshalPurgeAcl(d *caddyfile.Dispenser, c *Config) {
 			c.PurgeAcl = append(c.PurgeAcl, d.Val())
 		}
 	}
+}
+
+// unmarshalHostAlias reads `host_alias <host> <alias>...`, which may be given
+// more than once.
+func unmarshalHostAlias(d *caddyfile.Dispenser, c *Config) error {
+	args := d.RemainingArgs()
+	if len(args) < 2 {
+		return d.ArgErr()
+	}
+	if c.HostAliases == nil {
+		c.HostAliases = map[string]string{}
+	}
+	canonical := normalizeHost(args[0])
+	for _, a := range args[1:] {
+		alias := normalizeHost(a)
+		if _, ok := c.HostAliases[alias]; ok {
+			return d.Errf("%s is already an alias", a)
+		}
+		c.HostAliases[alias] = canonical
+	}
+	return nil
 }
 
 func unmarshalRistretto(d *caddyfile.Dispenser, c *Config) error {
@@ -88,6 +113,14 @@ func (h *Handler) Validate() error {
 			return err
 		}
 	}
+	for alias, canonical := range h.Config.HostAliases {
+		if alias == canonical {
+			return fmt.Errorf("host_alias: %s is an alias of itself", alias)
+		}
+		if _, ok := h.Config.HostAliases[canonical]; ok {
+			return fmt.Errorf("host_alias: %s is an alias of %s, which is an alias itself", alias, canonical)
+		}
+	}
 	if h.Config.Static != nil {
 		return h.Config.Static.validate()
 	}
@@ -103,6 +136,15 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		return err
 	}
 	h.backend = b
+	// A config loaded as JSON never ran the Caddyfile adapter, which
+	// normalizes the hosts as it reads them
+	if len(h.Config.HostAliases) > 0 {
+		aliases := make(map[string]string, len(h.Config.HostAliases))
+		for alias, canonical := range h.Config.HostAliases {
+			aliases[normalizeHost(alias)] = normalizeHost(canonical)
+		}
+		h.Config.HostAliases = aliases
+	}
 	if h.Config.Static != nil {
 		if err := h.Config.Static.provision(ctx); err != nil {
 			return err

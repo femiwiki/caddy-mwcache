@@ -82,3 +82,39 @@ func TestPurgeDeletesOnlyItsHost(t *testing.T) {
 		t.Errorf("a PURGE for another host deleted this entry: %v", err)
 	}
 }
+
+func TestAliasesShareEntries(t *testing.T) {
+	ht := newHostTest(t)
+	ht.h.Config.HostAliases = map[string]string{"www.femiwiki.com": "femiwiki.com", "127.0.0.1": "femiwiki.com"}
+
+	ht.serve(t, http.MethodGet, "femiwiki.com")
+	if rec := ht.serve(t, http.MethodGet, "WWW.femiwiki.com"); rec.Body.String() != "https://femiwiki.com/w/Main" {
+		t.Errorf("www.femiwiki.com was served %q", rec.Body.String())
+	}
+	if want := []string{"femiwiki.com"}; !slices.Equal(ht.calls, want) {
+		t.Errorf("expected upstream calls %v, got %v", want, ht.calls)
+	}
+}
+
+// MediaWiki sends its PURGEs to $wgInternalServer, so the Host is 127.0.0.1
+// whichever host the page was read on.
+func TestPurgeThroughAnAlias(t *testing.T) {
+	ht := newHostTest(t)
+	ht.h.Config.HostAliases = map[string]string{"www.femiwiki.com": "femiwiki.com", "127.0.0.1": "femiwiki.com"}
+
+	ht.serve(t, http.MethodGet, "www.femiwiki.com")
+	ht.serve(t, http.MethodGet, "m.femiwiki.com")
+	if rec := ht.serve(t, "PURGE", "127.0.0.1:80"); rec.Code != http.StatusNoContent {
+		t.Fatalf("PURGE: expected 204, got %d", rec.Code)
+	}
+	if _, err := ht.b.get("femiwiki.com/w/Main"); err != ErrKeyNotFound {
+		t.Errorf("the purged entry is still there: %v", err)
+	}
+	if _, err := ht.b.get("m.femiwiki.com/w/Main"); err != nil {
+		t.Errorf("a PURGE for another host deleted this entry: %v", err)
+	}
+	ht.serve(t, http.MethodGet, "femiwiki.com")
+	if want := []string{"www.femiwiki.com", "m.femiwiki.com", "femiwiki.com"}; !slices.Equal(ht.calls, want) {
+		t.Errorf("expected upstream calls %v, got %v", want, ht.calls)
+	}
+}

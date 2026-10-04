@@ -43,7 +43,7 @@ func TestCreateKey(t *testing.T) {
 	} {
 		req := httptest.NewRequest(http.MethodGet, test.target, nil)
 		req.Host = test.host
-		if actual := createKey(req); actual != test.expected {
+		if actual := (Handler{}).createKey(req); actual != test.expected {
 			t.Errorf("%q %s: expected %q but got %q", test.host, test.target, test.expected, actual)
 		}
 	}
