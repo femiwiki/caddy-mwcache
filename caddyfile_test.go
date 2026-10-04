@@ -2,6 +2,7 @@ package mwcache
 
 import (
 	"encoding/json"
+	"maps"
 	"strings"
 	"testing"
 
@@ -145,6 +146,7 @@ func TestJSONRoundTrip(t *testing.T) {
 			buffer_items 64
 		}
 		purge_acl 11.11.11.11
+		host_alias example.com www.example.com 127.0.0.1
 	}
 	`)
 	adapted := &Handler{}
@@ -179,6 +181,84 @@ func TestJSONRoundTrip(t *testing.T) {
 	}
 	if cost := loaded.Config.RistrettoConfig["max_cost"]; cost != "10000" {
 		t.Errorf("Expected: '10000' but got '%s'", cost)
+	}
+	if host := loaded.Config.HostAliases["127.0.0.1"]; host != "example.com" {
+		t.Errorf("Expected: 'example.com' but got '%s'", host)
+	}
+}
+
+func TestHostAlias(t *testing.T) {
+	for _, test := range []struct {
+		caddyfile string
+		// "" when the Caddyfile is refused
+		expected map[string]string
+	}{
+		{
+			caddyfile: `mwcache {
+				host_alias example.com www.example.com 127.0.0.1:80
+			}`,
+			expected: map[string]string{"www.example.com": "example.com", "127.0.0.1": "example.com"},
+		},
+		{
+			caddyfile: `mwcache {
+				host_alias Example.COM. localhost
+				host_alias example.org 127.0.0.1
+			}`,
+			expected: map[string]string{"localhost": "example.com", "127.0.0.1": "example.org"},
+		},
+		{caddyfile: `mwcache {
+			host_alias example.com
+		}`},
+		{caddyfile: `mwcache {
+			host_alias example.com 127.0.0.1
+			host_alias example.org 127.0.0.1
+		}`},
+		{caddyfile: `mwcache {
+			host_alias example.com example.com
+		}`},
+		{caddyfile: `mwcache {
+			host_alias "" 127.0.0.1
+		}`},
+		{caddyfile: `mwcache {
+			host_alias example.com ""
+		}`},
+		{caddyfile: `mwcache {
+			host_alias example.com www.example.com
+			host_alias www.example.com 127.0.0.1
+		}`},
+	} {
+		h := &Handler{}
+		err := h.UnmarshalCaddyfile(caddyfile.NewTestDispenser(test.caddyfile))
+		if err == nil {
+			err = h.Validate()
+		}
+		if test.expected == nil {
+			if err == nil {
+				t.Errorf("%s: should be refused", test.caddyfile)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v", test.caddyfile, err)
+			continue
+		}
+		if !maps.Equal(h.Config.HostAliases, test.expected) {
+			t.Errorf("%s: expected %v but got %v", test.caddyfile, test.expected, h.Config.HostAliases)
+		}
+	}
+}
+
+// JSON skips the adapter, so Provision normalizes what it is given.
+func TestHostAliasFromJSON(t *testing.T) {
+	h := &Handler{}
+	if err := json.Unmarshal([]byte(`{"config":{"backend":"ristretto","purge_acl":["127.0.0.1"],"ristretto_config":{"num_counters":"100000","max_cost":"10000","buffer_items":"64"},"host_aliases":{"127.0.0.1:80":"Example.com"}}}`), h); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if err := h.Provision(caddy.Context{}); err != nil {
+		t.Fatalf("Provision: %v", err)
+	}
+	if want := map[string]string{"127.0.0.1": "example.com"}; !maps.Equal(h.Config.HostAliases, want) {
+		t.Errorf("expected %v but got %v", want, h.Config.HostAliases)
 	}
 }
 
@@ -220,5 +300,15 @@ func TestBackendIsCreatedOnce(t *testing.T) {
 	}
 	if first.backend == reconfigured.backend {
 		t.Error("The backend should be rebuilt when its options change")
+	}
+}
+
+func TestHostAliasFromJSONConflict(t *testing.T) {
+	h := &Handler{}
+	if err := json.Unmarshal([]byte(`{"config":{"backend":"ristretto","purge_acl":["127.0.0.1"],"ristretto_config":{"num_counters":"100000","max_cost":"10000","buffer_items":"64"},"host_aliases":{"127.0.0.1:80":"a.example","127.0.0.1":"b.example"}}}`), h); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if err := h.Provision(caddy.Context{}); err == nil {
+		t.Error("Error should be thrown")
 	}
 }

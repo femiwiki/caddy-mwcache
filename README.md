@@ -35,6 +35,9 @@ mwcache {
   refuses an entry whose cost is above the whole budget, so a byte budget below
   one response caches nothing. `num_counters` is a count either way, and wants
   to be roughly ten times the entries the cache holds.
+- **host_alias** `<host> <alias>...` makes requests and purges for each alias
+  read, fill and delete the entries of `<host>`, see [Hosts](#hosts). It may be
+  given more than once.
 
 Pages are stored gzipped, so what is stored is the compressed size. A client
 that accepts gzip gets the stored bytes as they are, which `encode` passes
@@ -55,6 +58,28 @@ mwcache {
         <cidr2>
         <address1>
         <address2>
+    }
+    host_alias <host> <alias1> <alias2>
+}
+```
+
+## Hosts
+
+The cache key is the host and the URI, as Wikimedia's Varnish keys them, so two
+hosts behind one handler never share an entry, and a purge deletes only the
+entry of the host it names. The host is lowercased and loses its port and any
+trailing dot.
+
+MediaWiki sends its purges to `$wgInternalServer`, so their host is that one,
+not the one readers use. Make it an alias of `$wgServer`'s host. A second name
+that serves the same pages, such as `www`, can be an alias too, and then shares
+the entries instead of filling its own; a host that is not an alias of
+`$wgServer`'s is never purged, and its entries live until they expire.
+
+```caddyfile
+example.com www.example.com 127.0.0.1:80 {
+    mwcache {
+        host_alias example.com www.example.com 127.0.0.1
     }
 }
 ```
@@ -110,6 +135,9 @@ $wgCdnServers = '127.0.0.1';
 // If your web server supports TLS
 $wgInternalServer = 'http://127.0.0.1';
 ```
+
+Then add `host_alias <$wgServer's host> 127.0.0.1` to `mwcache`; see
+[Hosts](#hosts).
 
 ## Build
 

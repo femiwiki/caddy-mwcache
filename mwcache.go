@@ -22,8 +22,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// The backend is global so that the cache survives a config reload and every
-// server block purges the same entries. It is created once and reused unless
+// The backend is global so that the cache survives a config reload, and server
+// blocks that serve the same host purge the same entries. It is created once and reused unless
 // the requested backend options change.
 var (
 	backendMu      sync.Mutex
@@ -84,6 +84,10 @@ type Config struct {
 	PurgeAcl        []string          `json:"purge_acl,omitempty"`
 	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
 	Static          *StaticConfig     `json:"static,omitempty"`
+	// HostAliases maps a host to the one whose entries it reads, purges and
+	// fills, such as 127.0.0.1, where MediaWiki sends its PURGEs, to the
+	// public host.
+	HostAliases map[string]string `json:"host_aliases,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -139,7 +143,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 			w.Write([]byte("Method not allowed"))
 			return nil
 		}
-		key := createKey(r)
+		key := h.createKey(r)
 		h.backend.delete(key) //nolint:errcheck // the purge response is 204 whether or not the key was held
 		h.logger.Info("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
@@ -159,7 +163,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 		h.logger.Info("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
 	}
-	key := createKey(r)
+	key := h.createKey(r)
 	val, err := h.backend.get(key)
 	if err != nil {
 		if err == ErrKeyNotFound {
@@ -404,16 +408,40 @@ func (h Handler) isFresh(header http.Header) bool {
 	return (date.Add(time.Second * maxAge)).After(now)
 }
 
-func createKey(r *http.Request) string {
-	// TODO use hash function?
-	// Use URL.RequestURI() instead of URL.String() to truncate domain.
-	return r.URL.RequestURI()
+// createKey puts the host before the path, as Wikimedia's Varnish hashes the
+// Host along with the URL, so two sites behind one handler never share an
+// entry. The scheme is left out: MediaWiki purges over http what it serves
+// over https. A host named in HostAliases uses the key of the host it stands
+// for.
+func (h Handler) createKey(r *http.Request) string {
+	host := normalizeHost(r.Host)
+	if canonical, ok := h.Config.HostAliases[host]; ok {
+		host = canonical
+	}
+	return host + r.URL.RequestURI()
+}
+
+// normalizeHost lowercases a Host header and drops its port and any trailing
+// dot, so the spellings of one host share a key.
+func normalizeHost(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+	return strings.TrimSuffix(strings.ToLower(host), ".")
 }
 
 // NOTE: requests to RESTBase is not reach this module because of reverse_proxy has higher order
 func requestIsCacheable(r *http.Request) bool {
 	// don't cache authorized requests
 	if _, _, ok := r.BasicAuth(); ok {
+		return false
+	}
+	// HTTP/2 does not check :authority, and a host with a slash in it would
+	// split the key at a different place, such as a/b.femiwiki.com/w/X
+	// against host a and path /b.femiwiki.com/w/X
+	if strings.Contains(r.Host, "/") {
 		return false
 	}
 	if r.URL.Path == loadPHPPath {
@@ -424,9 +452,6 @@ func requestIsCacheable(r *http.Request) bool {
 			return false
 		}
 	} else if hasSessionCookie(r) {
-		return false
-	}
-	if key := createKey(r); key == "" {
 		return false
 	}
 	return true

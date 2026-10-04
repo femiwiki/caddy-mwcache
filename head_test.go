@@ -10,7 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const headTestURL = "/load.php?modules=site.styles&only=styles"
+const (
+	headTestURL = "/load.php?modules=site.styles&only=styles"
+	// httptest.NewRequest addresses example.com
+	headTestKey = "example.com" + headTestURL
+)
 
 type headTest struct {
 	h     Handler
@@ -69,7 +73,7 @@ func TestHeadDoesNotFillTheCache(t *testing.T) {
 	if rec := ht.serve(t, http.MethodHead); rec.Body.Len() != 0 {
 		t.Errorf("HEAD: expected no body, got %d bytes", rec.Body.Len())
 	}
-	if _, err := ht.b.get(headTestURL); err != ErrKeyNotFound {
+	if _, err := ht.b.get(headTestKey); err != ErrKeyNotFound {
 		t.Errorf("HEAD left an entry: %v", err)
 	}
 	if rec := ht.serve(t, http.MethodGet); rec.Body.String() != ".site{color:red}" {
@@ -115,12 +119,12 @@ func TestStaleHeadDoesNotReplaceTheEntry(t *testing.T) {
 	ht := newHeadTest(t, "public, max-age=0, s-maxage=0")
 
 	ht.serve(t, http.MethodGet)
-	before, err := ht.b.get(headTestURL)
+	before, err := ht.b.get(headTestKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ht.serve(t, http.MethodHead)
-	after, err := ht.b.get(headTestURL)
+	after, err := ht.b.get(headTestKey)
 	if err != nil {
 		t.Fatal(err)
 	}

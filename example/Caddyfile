@@ -17,6 +17,7 @@ mwcache {
 		172.0.0.0/8
 		127.0.0.1
 	}
+	host_alias 127.0.0.1 localhost
 }
 
 log {
