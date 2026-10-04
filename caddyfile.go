@@ -114,6 +114,9 @@ func (h *Handler) Validate() error {
 		}
 	}
 	for alias, canonical := range h.Config.HostAliases {
+		if alias == "" || canonical == "" {
+			return fmt.Errorf("host_alias: a host cannot be empty")
+		}
 		if alias == canonical {
 			return fmt.Errorf("host_alias: %s is an alias of itself", alias)
 		}
@@ -141,7 +144,12 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 	if len(h.Config.HostAliases) > 0 {
 		aliases := make(map[string]string, len(h.Config.HostAliases))
 		for alias, canonical := range h.Config.HostAliases {
-			aliases[normalizeHost(alias)] = normalizeHost(canonical)
+			a, c := normalizeHost(alias), normalizeHost(canonical)
+			// Two spellings of one alias would otherwise leave the winner to map order
+			if prev, ok := aliases[a]; ok && prev != c {
+				return fmt.Errorf("host_alias: %s is an alias of both %s and %s", a, prev, c)
+			}
+			aliases[a] = c
 		}
 		h.Config.HostAliases = aliases
 	}

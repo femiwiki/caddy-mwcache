@@ -217,6 +217,12 @@ func TestHostAlias(t *testing.T) {
 			host_alias example.com example.com
 		}`},
 		{caddyfile: `mwcache {
+			host_alias "" 127.0.0.1
+		}`},
+		{caddyfile: `mwcache {
+			host_alias example.com ""
+		}`},
+		{caddyfile: `mwcache {
 			host_alias example.com www.example.com
 			host_alias www.example.com 127.0.0.1
 		}`},
@@ -294,5 +300,15 @@ func TestBackendIsCreatedOnce(t *testing.T) {
 	}
 	if first.backend == reconfigured.backend {
 		t.Error("The backend should be rebuilt when its options change")
+	}
+}
+
+func TestHostAliasFromJSONConflict(t *testing.T) {
+	h := &Handler{}
+	if err := json.Unmarshal([]byte(`{"config":{"backend":"ristretto","purge_acl":["127.0.0.1"],"ristretto_config":{"num_counters":"100000","max_cost":"10000","buffer_items":"64"},"host_aliases":{"127.0.0.1:80":"a.example","127.0.0.1":"b.example"}}}`), h); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if err := h.Provision(caddy.Context{}); err == nil {
+		t.Error("Error should be thrown")
 	}
 }
