@@ -404,10 +404,23 @@ func (h Handler) isFresh(header http.Header) bool {
 	return (date.Add(time.Second * maxAge)).After(now)
 }
 
+// createKey puts the host before the path, as Wikimedia's Varnish hashes the
+// Host along with the URL, so two sites behind one handler never share an
+// entry. The scheme is left out: MediaWiki purges over http what it serves
+// over https.
 func createKey(r *http.Request) string {
-	// TODO use hash function?
-	// Use URL.RequestURI() instead of URL.String() to truncate domain.
-	return r.URL.RequestURI()
+	return normalizeHost(r.Host) + r.URL.RequestURI()
+}
+
+// normalizeHost lowercases a Host header and drops its port and any trailing
+// dot, so the spellings of one host share a key.
+func normalizeHost(host string) string {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+	return strings.TrimSuffix(strings.ToLower(host), ".")
 }
 
 // NOTE: requests to RESTBase is not reach this module because of reverse_proxy has higher order

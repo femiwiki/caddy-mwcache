@@ -85,7 +85,7 @@ func TestEntriesAreStoredCompressed(t *testing.T) {
 	if calls != 1 {
 		t.Errorf("Expected one call upstream but got %d", calls)
 	}
-	stored, err := b.get("/w/Page")
+	stored, err := b.get("example.com/w/Page")
 	if err != nil {
 		t.Fatal(err)
 	}
