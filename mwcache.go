@@ -68,6 +68,12 @@ var (
 	sMaxAge              = regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
 )
 
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
 func init() {
 	caddy.RegisterModule(Handler{})
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
@@ -182,14 +188,9 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	// Cache hit, response with cache
 	h.logger.Debug("cache hit: " + key)
 
-	pool := sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
-	buf := pool.Get().(*bytes.Buffer)
+	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer pool.Put(buf)
+	defer bufferPool.Put(buf)
 	buf.Write([]byte(val))
 
 	if err := h.writeResponse(w, r, buf, true); err != nil {
@@ -211,14 +212,9 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 	if r.Method == http.MethodHead {
 		return next.ServeHTTP(w, r)
 	}
-	pool := sync.Pool{
-		New: func() interface{} {
-			return new(bytes.Buffer)
-		},
-	}
-	buf := pool.Get().(*bytes.Buffer)
+	buf := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer pool.Put(buf)
+	defer bufferPool.Put(buf)
 
 	var meta metadata
 	rec := caddyhttp.NewResponseRecorder(w, buf, func(status int, header http.Header) bool {
