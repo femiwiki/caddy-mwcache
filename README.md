@@ -200,7 +200,7 @@ terms of the [GNU Affero General Public License v3.0] or any later version. See
 [codecov.io link]: https://codecov.io/gh/femiwiki/caddy-mwcache
 
 [mediawiki]: https://www.mediawiki.org
-[Ristretto's Config struct]: https://pkg.go.dev/github.com/dgraph-io/ristretto#Config
+[Ristretto's Config struct]: https://pkg.go.dev/github.com/dgraph-io/ristretto/v2#Config
 [static.php]: https://github.com/wikimedia/operations-mediawiki-config/blob/63f500d0e9d7a01855395347c8b10c5ea9bcd90f/w/static.php
 [T264735]: https://phabricator.wikimedia.org/T264735
 [localsettings.php]: https://www.mediawiki.org/wiki/Manual:LocalSettings.php

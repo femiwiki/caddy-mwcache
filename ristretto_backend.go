@@ -7,12 +7,12 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/stoewer/go-strcase"
 )
 
 type RistrettoBackend struct {
-	cache *ristretto.Cache
+	cache *ristretto.Cache[string, string]
 	// Set when the Caddyfile asked for max_cost_bytes, which is what makes an
 	// entry cost the space it takes rather than one of however many the cache
 	// holds.
@@ -65,7 +65,7 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	if err != nil {
 		return err
 	}
-	optionReflect := reflect.ValueOf(ristretto.Config{})
+	optionReflect := reflect.ValueOf(ristretto.Config[string, string]{})
 	for k := range options {
 		k = strcase.UpperCamelCase(k)
 		if !optionReflect.FieldByName(k).IsValid() {
@@ -76,11 +76,11 @@ func ValidateRistrettoConfig(rawOptions map[string]string) error {
 }
 
 // TODO
-func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config, error) {
+func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config[string, string], error) {
 	// On by default so the counters exist to be scraped; an explicit
 	// `metrics false` in the Caddyfile still wins, since rawOptions is
 	// applied over this.
-	c := ristretto.Config{Metrics: true}
+	c := ristretto.Config[string, string]{Metrics: true}
 	optionsReflect := reflect.ValueOf(&c)
 	for k, strV := range rawOptions {
 		k = strcase.UpperCamelCase(k)
@@ -146,7 +146,7 @@ func (m *RistrettoBackend) get(key string) (string, error) {
 	if !ok {
 		return "", ErrKeyNotFound
 	}
-	return val.(string), nil
+	return val, nil
 }
 
 func (m *RistrettoBackend) delete(key string) error {
