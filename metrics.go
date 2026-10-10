@@ -3,7 +3,7 @@ package mwcache
 import (
 	"errors"
 
-	"github.com/dgraph-io/ristretto"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )
