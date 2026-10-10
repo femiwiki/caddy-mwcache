@@ -18,11 +18,13 @@ func TestDirectives(t *testing.T) {
 		acl       []string
 		ristretto map[string]string
 	}{
+		// The ristretto backend has no default size, so a bare directive is
+		// rejected instead of failing when the cache is built. See #127.
 		{
 			caddyfile: `mwcache`,
-			valid:     true,
-			backend:   "ristretto",
-			acl:       []string{"127.0.0.1"},
+			valid:     false,
+			backend:   "",
+			acl:       nil,
 			ristretto: nil,
 		},
 		{
@@ -35,17 +37,27 @@ func TestDirectives(t *testing.T) {
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl 11.11.11.11
 			}
 			`,
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl {
 					11.11.11.11
 					11.11.11.12
@@ -55,11 +67,16 @@ func TestDirectives(t *testing.T) {
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11", "11.11.11.12"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		{
 			caddyfile: `
 			mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
 				purge_acl {
 					11.11.11.11
 					11.11.11.12
@@ -71,7 +88,7 @@ func TestDirectives(t *testing.T) {
 			valid:     true,
 			backend:   "ristretto",
 			acl:       []string{"11.11.11.11", "11.11.11.12", "11.11.11.13", "11.11.11.14"},
-			ristretto: nil,
+			ristretto: map[string]string{"num_counters": "100000", "max_cost": "10000", "buffer_items": "64"},
 		},
 		// TODO
 		// {
@@ -104,6 +121,9 @@ func TestDirectives(t *testing.T) {
 		d := caddyfile.NewTestDispenser(test.caddyfile)
 		m := &Handler{}
 		err := m.UnmarshalCaddyfile(d)
+		if err == nil {
+			err = m.Validate()
+		}
 		if test.valid && err != nil {
 			t.Errorf("Test %d: error = %v", i, err)
 		}
@@ -227,8 +247,15 @@ func TestHostAlias(t *testing.T) {
 			host_alias www.example.com 127.0.0.1
 		}`},
 	} {
+		// The ristretto block is required, and the same in every case
+		src := strings.Replace(test.caddyfile, "mwcache {", `mwcache {
+			ristretto {
+				num_counters 100000
+				max_cost 10000
+				buffer_items 64
+			}`, 1)
 		h := &Handler{}
-		err := h.UnmarshalCaddyfile(caddyfile.NewTestDispenser(test.caddyfile))
+		err := h.UnmarshalCaddyfile(caddyfile.NewTestDispenser(src))
 		if err == nil {
 			err = h.Validate()
 		}
@@ -310,5 +337,93 @@ func TestHostAliasFromJSONConflict(t *testing.T) {
 	}
 	if err := h.Provision(caddy.Context{}); err == nil {
 		t.Error("Error should be thrown")
+	}
+}
+
+// A missing ristretto option is a config error naming it on both of Caddy's
+// paths, and either name of the cost budget satisfies it. See #127.
+func TestRistrettoOptionsAreRequired(t *testing.T) {
+	for _, test := range []struct {
+		caddyfile string
+		// nil when the Caddyfile is accepted
+		missing []string
+		present []string
+	}{
+		{
+			caddyfile: `mwcache`,
+			missing:   []string{"num_counters", "max_cost_bytes or max_cost", "buffer_items"},
+		},
+		{
+			caddyfile: `mwcache {
+				ristretto {
+					num_counters 100000
+				}
+			}`,
+			missing: []string{"max_cost_bytes or max_cost", "buffer_items"},
+			present: []string{"num_counters"},
+		},
+		{
+			caddyfile: `mwcache {
+				ristretto {
+					num_counters 14000
+					max_cost_bytes 67108864
+					buffer_items 64
+				}
+			}`,
+		},
+		{
+			caddyfile: `mwcache {
+				ristretto {
+					num_counters 100000
+					max_cost 10000
+					buffer_items 64
+				}
+			}`,
+		},
+	} {
+		h := &Handler{}
+		if err := h.UnmarshalCaddyfile(caddyfile.NewTestDispenser(test.caddyfile)); err != nil {
+			t.Fatalf("%s: UnmarshalCaddyfile: %v", test.caddyfile, err)
+		}
+		verr := h.Validate()
+		// Caddy provisions before it validates, so the backend has to refuse it too.
+		perr := h.Provision(caddy.Context{})
+		if test.missing == nil {
+			if verr != nil || perr != nil {
+				t.Errorf("%s: validate = %v, provision = %v", test.caddyfile, verr, perr)
+			}
+			continue
+		}
+		if verr == nil || perr == nil {
+			t.Errorf("%s: should be refused, validate = %v, provision = %v", test.caddyfile, verr, perr)
+			continue
+		}
+		for _, k := range test.missing {
+			if !strings.Contains(verr.Error(), k) {
+				t.Errorf("%s: expected the error to name '%s' but got '%s'", test.caddyfile, k, verr)
+			}
+		}
+		for _, k := range test.present {
+			if strings.Contains(verr.Error(), k) {
+				t.Errorf("%s: expected the error to leave '%s' out but got '%s'", test.caddyfile, k, verr)
+			}
+		}
+	}
+}
+
+// Caddy provisions before it validates, so a misspelled key must not reach the parser. See #179.
+func TestMisspelledRistrettoOptionIsRefused(t *testing.T) {
+	h := &Handler{}
+	if err := h.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`mwcache {
+		ristretto {
+			num_counters 100000
+			max_cots 10000
+			buffer_items 64
+		}
+	}`)); err != nil {
+		t.Fatalf("UnmarshalCaddyfile: %v", err)
+	}
+	if err := h.Provision(caddy.Context{}); err == nil || !strings.Contains(err.Error(), "MaxCots") {
+		t.Errorf("Expected an error naming 'MaxCots' but got '%v'", err)
 	}
 }
