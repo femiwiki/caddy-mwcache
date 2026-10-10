@@ -62,6 +62,12 @@ type metadata struct {
 
 var errStale = fmt.Errorf("stale")
 
+var (
+	uncacheableDirective = regexp.MustCompile(`(private|no-cache|no-store)`)
+	sessionCookiePattern = regexp.MustCompile(`([sS]ession|Token)=`)
+	sMaxAge              = regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
+)
+
 func init() {
 	caddy.RegisterModule(Handler{})
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
@@ -226,7 +232,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 		if c == "" {
 			return false
 		}
-		if match, err := regexp.Match(`(private|no-cache|no-store)`, []byte(c)); err == nil && match {
+		if uncacheableDirective.MatchString(c) {
 			return false
 		}
 		if header.Get("Set-Cookie") != "" {
@@ -377,8 +383,7 @@ func (h Handler) isFresh(header http.Header) bool {
 		h.logger.Info("stored cache has no Cache-Control header")
 		return true
 	}
-	re := regexp.MustCompile(`s-maxage\s*=\s*(\d+)`)
-	submatch := re.FindStringSubmatch(cc)
+	submatch := sMaxAge.FindStringSubmatch(cc)
 	if len(submatch) != 2 {
 		h.logger.Info("Cache-Control has no s-maxage")
 		return true
@@ -485,8 +490,7 @@ func hasUserParam(rawQuery string) bool {
 // https://github.com/wikimedia/operations-puppet/blob/ecfe533f59092e7728cac31873de9b022e9e72d5/modules/varnish/templates/text-frontend.inc.vcl.erb#L811-L828
 func hasSessionCookie(r *http.Request) bool {
 	cookie := r.Header.Get("Cookie")
-	match, err := regexp.Match(`([sS]ession|Token)=`, []byte(cookie))
-	return err == nil && match
+	return sessionCookiePattern.MatchString(cookie)
 }
 
 // Interface guards
