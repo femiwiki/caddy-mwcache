@@ -62,8 +62,6 @@ type metadata struct {
 
 var errStale = fmt.Errorf("stale")
 
-const timeFormat = "Mon, 2 Jan 2006 15:04:05 MST"
-
 func init() {
 	caddy.RegisterModule(Handler{})
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
@@ -235,7 +233,7 @@ func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reques
 			return false
 		}
 		if header.Get("Date") == "" {
-			header.Set("Date", time.Now().UTC().Format(timeFormat))
+			header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
 		}
 		meta = metadata{Header: header.Clone(), Status: status}
 		return true
@@ -396,7 +394,7 @@ func (h Handler) isFresh(header http.Header) bool {
 		return true
 	}
 
-	date, err = time.Parse(timeFormat, dateHeader)
+	date, err = http.ParseTime(dateHeader)
 	if err != nil {
 		h.logger.Info("parsing " + dateHeader + " failed")
 		return true
