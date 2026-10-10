@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.1](https://github.com/femiwiki/caddy-mwcache/compare/v1.0.0...v1.0.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* emit RFC-compliant Date headers ([#107](https://github.com/femiwiki/caddy-mwcache/issues/107)) ([e2cd34a](https://github.com/femiwiki/caddy-mwcache/commit/e2cd34a39926be398edc15b7e57233c86fa5b621))
+* keep serving the response when a cache write is dropped ([#108](https://github.com/femiwiki/caddy-mwcache/issues/108)) ([d068dcb](https://github.com/femiwiki/caddy-mwcache/commit/d068dcb855c705abb66ca8cd01468c9a101a378b))
+* require the ristretto options rather than starting without them ([#130](https://github.com/femiwiki/caddy-mwcache/issues/130)) ([034e3a2](https://github.com/femiwiki/caddy-mwcache/commit/034e3a24242d5d26daaa5330dedce6e976e3870e)), closes [#127](https://github.com/femiwiki/caddy-mwcache/issues/127) [#179](https://github.com/femiwiki/caddy-mwcache/issues/179)
+
+
+### Performance Improvements
+
+* compile the header regexps once ([#109](https://github.com/femiwiki/caddy-mwcache/issues/109)) ([6f1e9d8](https://github.com/femiwiki/caddy-mwcache/commit/6f1e9d8912b7bc4db449487ea51eb7647f151d58))
+* share one buffer pool across requests ([#110](https://github.com/femiwiki/caddy-mwcache/issues/110)) ([92141f5](https://github.com/femiwiki/caddy-mwcache/commit/92141f5711b269f65d4e403200299bfe36fa7e97))
+
 ## [1.0.0](https://github.com/femiwiki/caddy-mwcache/compare/v0.3.0...v1.0.0) (2026-10-04)
 
 
