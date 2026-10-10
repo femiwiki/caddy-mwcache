@@ -1,7 +1,26 @@
+---
 version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    schedule:
+      interval: monthly
+    reviewers:
+      - 'femiwiki/reviewer'
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: monthly
+    reviewers:
+      - 'femiwiki/reviewer'
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "composer"
+    directory: "/example"
     schedule:
       interval: monthly
     reviewers:

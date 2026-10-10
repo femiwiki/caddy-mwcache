@@ -1,0 +1,39 @@
+---
+name: Bump the plugin in docker-mediawiki
+
+on:
+  push:
+    branches: [main]
+    # None of these is compiled into Caddy, so a push touching only these changes nothing it runs
+    paths-ignore:
+      - .github/**
+      - example/**
+      - updatecli.d/**
+      - '**_test.go'
+      - '**.md'
+
+permissions: {}
+
+jobs:
+  dispatch:
+    if: github.repository_owner == 'femiwiki'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - uses: peter-murray/workflow-application-token-action@d17e3a9a36850ea89f35db16c1067dd2b68ee343  # v4.0.1
+        id: get_workflow_token
+        with:
+          application_id: ${{ vars.PAT_APPLICATION_ID }}
+          application_private_key: ${{ secrets.PAT_APPLICATION_PRIVATE_KEY }}
+
+      - name: Dispatch the bump to this commit
+        env:
+          GH_TOKEN: ${{ steps.get_workflow_token.outputs.token }}
+          PLUGIN: ${{ github.event.repository.name }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api repos/femiwiki/docker-mediawiki/dispatches \
+            -f event_type=bump-caddy-plugin \
+            -f "client_payload[plugin]=$PLUGIN" \
+            -f "client_payload[sha]=$SHA"
