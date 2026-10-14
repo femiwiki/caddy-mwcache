@@ -39,7 +39,7 @@ func TestRequestIsCacheable(t *testing.T) {
 		{"/w/Main", "femiwikiToken=abc", false},
 		{"/w/Main", "", true},
 	} {
-		req := httptest.NewRequest(http.MethodGet, test.target, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.target, nil)
 		if test.cookie != "" {
 			req.Header.Set("Cookie", test.cookie)
 		}
@@ -72,7 +72,7 @@ func TestLoadPHPWithSessionCookie(t *testing.T) {
 			}
 			h := Handler{logger: zap.NewNop(), backend: b}
 			calls := 0
-			upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 				calls++
 				w.Header().Set("Cache-Control", test.cacheControl)
 				w.Header().Set("Content-Type", "text/css; charset=utf-8")
@@ -85,7 +85,7 @@ func TestLoadPHPWithSessionCookie(t *testing.T) {
 
 			// A logged-in request, then an anonymous one, then a logged-in one again
 			for i, cookie := range []string{sessionCookie, "", sessionCookie} {
-				req := httptest.NewRequest(http.MethodGet, test.target, nil)
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.target, nil)
 				if cookie != "" {
 					req.Header.Set("Cookie", cookie)
 				}
@@ -135,7 +135,7 @@ func TestPageWithSessionCookieSkipsTheCache(t *testing.T) {
 		{"", "anonymous"},
 		{sessionCookie, "logged in"},
 	} {
-		req := httptest.NewRequest(http.MethodGet, "/w/load.php", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/load.php", nil)
 		if test.cookie != "" {
 			req.Header.Set("Cookie", test.cookie)
 		}

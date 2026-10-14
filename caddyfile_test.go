@@ -8,6 +8,7 @@ import (
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 )
 
 func TestDirectives(t *testing.T) {
@@ -139,9 +140,9 @@ func TestDirectives(t *testing.T) {
 		}
 
 		// TODO Compare all elements
-		if len(m.Config.PurgeAcl) != len(test.acl) || m.Config.PurgeAcl[0] != test.acl[0] {
+		if len(m.Config.PurgeACL) != len(test.acl) || m.Config.PurgeACL[0] != test.acl[0] {
 			e := strings.Join(test.acl, ", ")
-			a := strings.Join(m.Config.PurgeAcl, ", ")
+			a := strings.Join(m.Config.PurgeACL, ", ")
 			t.Errorf("Test %d: Expected: '%s' but got '%s'", i, e, a)
 		}
 
@@ -196,7 +197,7 @@ func TestJSONRoundTrip(t *testing.T) {
 	if loaded.Config.Backend != "ristretto" {
 		t.Errorf("Expected: 'ristretto' but got '%s'", loaded.Config.Backend)
 	}
-	if acl := strings.Join(loaded.Config.PurgeAcl, ", "); acl != "11.11.11.11" {
+	if acl := strings.Join(loaded.Config.PurgeACL, ", "); acl != "11.11.11.11" {
 		t.Errorf("Expected: '11.11.11.11' but got '%s'", acl)
 	}
 	if cost := loaded.Config.RistrettoConfig["max_cost"]; cost != "10000" {
@@ -308,7 +309,7 @@ func TestBackendIsCreatedOnce(t *testing.T) {
 	newHandler := func(o map[string]string) *Handler {
 		return &Handler{Config: Config{
 			Backend:         "ristretto",
-			PurgeAcl:        []string{"127.0.0.1"},
+			PurgeACL:        []string{"127.0.0.1"},
 			RistrettoConfig: o,
 		}}
 	}
@@ -425,5 +426,26 @@ func TestMisspelledRistrettoOptionIsRefused(t *testing.T) {
 	}
 	if err := h.Provision(caddy.Context{}); err == nil || !strings.Contains(err.Error(), "MaxCots") {
 		t.Errorf("Expected an error naming 'MaxCots' but got '%v'", err)
+	}
+}
+
+func TestValidateRequiresBackendAndPurgeACL(t *testing.T) {
+	if err := (&Handler{}).Validate(); err == nil {
+		t.Error("no backend: expected an error")
+	}
+	h := &Handler{Config: Config{Backend: "ristretto"}}
+	if err := h.Validate(); err == nil {
+		t.Error("no purge acl: expected an error")
+	}
+}
+
+func TestParseCaddyfile(t *testing.T) {
+	d := caddyfile.NewTestDispenser(`mwcache`)
+	m, err := parseCaddyfile(httpcaddyfile.Helper{Dispenser: d})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h, ok := m.(*Handler); !ok || h.Config.Backend != "ristretto" {
+		t.Errorf("unexpected handler: %#v", m)
 	}
 }

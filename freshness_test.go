@@ -26,7 +26,7 @@ func TestStaleEntryIsRefetched(t *testing.T) {
 	b[articleKey] = stale.String()
 	next := cacheableUpstream()
 
-	w := serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
+	w := serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
 
 	if next.calls != 1 {
 		t.Errorf("upstream saw %d requests, want 1", next.calls)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -40,7 +41,7 @@ func sharedBackend(c Config) (Backend, error) {
 	}
 	switch c.Backend {
 	case "":
-		return nil, fmt.Errorf("no backend")
+		return nil, errors.New("no backend")
 	case "ristretto":
 		b, err := newRistrettoBackend(c.RistrettoConfig)
 		if err != nil {
@@ -60,7 +61,7 @@ type metadata struct {
 	Status int
 }
 
-var errStale = fmt.Errorf("stale")
+var errStale = errors.New("stale")
 
 var (
 	uncacheableDirective = regexp.MustCompile(`(private|no-cache|no-store)`)
@@ -69,7 +70,7 @@ var (
 )
 
 var bufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return new(bytes.Buffer)
 	},
 }
@@ -79,6 +80,7 @@ func init() {
 	httpcaddyfile.RegisterHandlerDirective("mwcache", parseCaddyfile)
 }
 
+// Handler serves MediaWiki pages from the cache and fills it.
 type Handler struct {
 	logger  *zap.Logger
 	backend Backend
@@ -89,9 +91,10 @@ type Handler struct {
 	Config Config `json:"config"`
 }
 
+// Config holds the handler options.
 type Config struct {
 	Backend         string            `json:"backend,omitempty"`
-	PurgeAcl        []string          `json:"purge_acl,omitempty"`
+	PurgeACL        []string          `json:"purge_acl,omitempty"`
 	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
 	Static          *StaticConfig     `json:"static,omitempty"`
 	// HostAliases maps a host to the one whose entries it reads, purges and
@@ -108,6 +111,8 @@ func (Handler) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
+// CIDRContainsIP reports whether needleStr, with any port dropped, is cidr or
+// falls in it.
 func CIDRContainsIP(cidr string, needleStr string) bool {
 	// Ignore port
 	if strings.Contains(needleStr, ":") {
@@ -116,8 +121,8 @@ func CIDRContainsIP(cidr string, needleStr string) bool {
 
 	// Return correct value even if the given 'cidr' is a ip address other then a cidr'
 	haystackIP := net.ParseIP(cidr)
-	needleIp := net.ParseIP(needleStr)
-	if haystackIP.Equal(needleIp) {
+	needleIP := net.ParseIP(needleStr)
+	if haystackIP.Equal(needleIP) {
 		return true
 	}
 
@@ -126,11 +131,11 @@ func CIDRContainsIP(cidr string, needleStr string) bool {
 	if err != nil {
 		return false
 	}
-	return ipNet.Contains(needleIp)
+	return ipNet.Contains(needleIP)
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
-func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if s := h.Config.Static; s != nil && s.matches(r) {
 		return s.serve(w, r, next)
 	}
@@ -138,7 +143,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	case "PURGE":
 		// Check Domain against purge acl
 		// See https://github.com/wikimedia/puppet/blob/120dff45/modules/varnish/templates/wikimedia-frontend.vcl.erb#L501-L513
-		acl := h.Config.PurgeAcl
+		acl := h.Config.PurgeACL
 		found := false
 		for _, cidr := range acl {
 			if CIDRContainsIP(cidr, r.RemoteAddr) {
@@ -168,7 +173,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhtt
 	}
 }
 
-func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	if !requestIsCacheable(r) {
 		h.logger.Debug("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
@@ -176,7 +181,7 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	key := h.createKey(r)
 	val, err := h.backend.get(key)
 	if err != nil {
-		if err == ErrKeyNotFound {
+		if errors.Is(err, ErrKeyNotFound) {
 			h.logger.Debug("cache miss: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
@@ -188,13 +193,13 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	// Cache hit, response with cache
 	h.logger.Debug("cache hit: " + key)
 
-	buf := bufferPool.Get().(*bytes.Buffer)
+	buf, _ := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer bufferPool.Put(buf)
-	buf.Write([]byte(val))
+	buf.WriteString(val)
 
 	if err := h.writeResponse(w, r, buf, true); err != nil {
-		if err == errStale {
+		if errors.Is(err, errStale) {
 			h.logger.Debug("staled, drop: " + key)
 			if err := h.serveAndCache(key, w, r, next); err != nil {
 				return err
@@ -206,13 +211,13 @@ func (h Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func (h Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	// A HEAD response has no body, and the key does not hold the method, so
 	// storing it would hand an empty body to every GET after it.
 	if r.Method == http.MethodHead {
 		return next.ServeHTTP(w, r)
 	}
-	buf := bufferPool.Get().(*bytes.Buffer)
+	buf, _ := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer bufferPool.Put(buf)
 
@@ -302,7 +307,7 @@ func gzipBytes(b []byte) ([]byte, error) {
 // acceptsGzip reports whether the client listed gzip, or *, in Accept-Encoding
 // with a q above zero.
 func acceptsGzip(r *http.Request) bool {
-	for _, part := range strings.Split(r.Header.Get("Accept-Encoding"), ",") {
+	for part := range strings.SplitSeq(r.Header.Get("Accept-Encoding"), ",") {
 		name, params, _ := strings.Cut(part, ";")
 		name = strings.ToLower(strings.TrimSpace(name))
 		if name != "gzip" && name != "*" {
@@ -318,7 +323,7 @@ func acceptsGzip(r *http.Request) bool {
 	return false
 }
 
-func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *bytes.Buffer, fromCache bool) error {
+func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *bytes.Buffer, fromCache bool) error {
 	header := w.Header()
 
 	var meta metadata
@@ -348,9 +353,7 @@ func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byte
 	// since on a miss the writer still holds what the upstream sent.
 	header.Del("Content-Encoding")
 	header.Del("Content-Length")
-	for k, v := range meta.Header {
-		header[k] = v
-	}
+	maps.Copy(header, meta.Header)
 	w.WriteHeader(meta.Status)
 
 	// Write body
@@ -368,7 +371,7 @@ func (h Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byte
 //   - https://github.com/wikimedia/mediawiki/blob/master/includes/OutputPage.php
 //   - https://github.com/wikimedia/mediawiki/blob/master/includes/api/ApiMain.php
 //   - https://github.com/wikimedia/mediawiki/blob/master/includes/AjaxResponse.php
-func (h Handler) isFresh(header http.Header) bool {
+func (h *Handler) isFresh(header http.Header) bool {
 	var maxAgeInt uint64
 	var err error
 	var date time.Time
@@ -404,8 +407,8 @@ func (h Handler) isFresh(header http.Header) bool {
 	date = date.UTC()
 	now := time.Now().UTC()
 
-	maxAge := time.Duration(maxAgeInt)
-	return (date.Add(time.Second * maxAge)).After(now)
+	maxAge := time.Duration(maxAgeInt) * time.Second
+	return date.Add(maxAge).After(now)
 }
 
 // createKey puts the host before the path, as Wikimedia's Varnish hashes the
@@ -413,7 +416,7 @@ func (h Handler) isFresh(header http.Header) bool {
 // entry. The scheme is left out: MediaWiki purges over http what it serves
 // over https. A host named in HostAliases uses the key of the host it stands
 // for.
-func (h Handler) createKey(r *http.Request) string {
+func (h *Handler) createKey(r *http.Request) string {
 	host := normalizeHost(r.Host)
 	if canonical, ok := h.Config.HostAliases[host]; ok {
 		host = canonical

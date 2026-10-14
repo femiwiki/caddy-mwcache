@@ -1,6 +1,7 @@
 package mwcache
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/caddyserver/caddy/v2"
@@ -9,10 +10,11 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
+// UnmarshalCaddyfile implements caddyfile.Unmarshaler.
 func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	h.Config = Config{
 		Backend:  "ristretto",
-		PurgeAcl: []string{"127.0.0.1"},
+		PurgeACL: []string{"127.0.0.1"},
 	}
 	c := &h.Config
 	for d.Next() {
@@ -43,7 +45,7 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return err
 				}
 			case "purge_acl":
-				unmarshalPurgeAcl(d, c)
+				unmarshalPurgeACL(d, c)
 			default:
 				return d.ArgErr()
 			}
@@ -52,14 +54,14 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	return nil
 }
 
-func unmarshalPurgeAcl(d *caddyfile.Dispenser, c *Config) {
+func unmarshalPurgeACL(d *caddyfile.Dispenser, c *Config) {
 	// TODO throw error when an empty block is given
-	c.PurgeAcl = nil
+	c.PurgeACL = nil
 	if len(d.RemainingArgs()) == 1 && !d.NextBlock(1) {
-		c.PurgeAcl = []string{d.Val()}
+		c.PurgeACL = []string{d.Val()}
 	} else {
 		for d.NextBlock(1) {
-			c.PurgeAcl = append(c.PurgeAcl, d.Val())
+			c.PurgeACL = append(c.PurgeACL, d.Val())
 		}
 	}
 }
@@ -103,10 +105,10 @@ func unmarshalRistretto(d *caddyfile.Dispenser, c *Config) error {
 // Validate implements caddy.Validator.
 func (h *Handler) Validate() error {
 	if h.Config.Backend == "" {
-		return fmt.Errorf("no backend")
+		return errors.New("no backend")
 	}
-	if h.Config.PurgeAcl == nil {
-		return fmt.Errorf("no purge acl")
+	if h.Config.PurgeACL == nil {
+		return errors.New("no purge acl")
 	}
 	if h.Config.Backend == "ristretto" {
 		if err := ValidateRistrettoConfig(h.Config.RistrettoConfig); err != nil {
@@ -115,7 +117,7 @@ func (h *Handler) Validate() error {
 	}
 	for alias, canonical := range h.Config.HostAliases {
 		if alias == "" || canonical == "" {
-			return fmt.Errorf("host_alias: a host cannot be empty")
+			return errors.New("host_alias: a host cannot be empty")
 		}
 		if alias == canonical {
 			return fmt.Errorf("host_alias: %s is an alias of itself", alias)
@@ -165,7 +167,7 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
 	var m Handler
 	err := m.UnmarshalCaddyfile(h.Dispenser)
-	return m, err
+	return &m, err
 }
 
 // Interface guards

@@ -12,6 +12,7 @@ import (
 	"github.com/stoewer/go-strcase"
 )
 
+// RistrettoBackend is a Backend kept in memory by ristretto.
 type RistrettoBackend struct {
 	cache *ristretto.Cache[string, string]
 	// Set when the Caddyfile asked for max_cost_bytes, which is what makes an
@@ -67,7 +68,7 @@ func readCostOption(rawOptions map[string]string) (map[string]string, bool, erro
 // cannot guess a size, so the Caddyfile has to say. See #127.
 var requiredRistrettoOptions = []string{"num_counters", "max_cost", "buffer_items"}
 
-// TODO
+// ValidateRistrettoConfig reports an error for options ristretto would reject.
 func ValidateRistrettoConfig(rawOptions map[string]string) error {
 	options, _, err := readCostOption(rawOptions)
 	if err != nil {

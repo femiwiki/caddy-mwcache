@@ -1,7 +1,7 @@
 package mwcache
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // a cache-busting hash, not a security one
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -104,7 +104,7 @@ func (s *StaticConfig) cacheControl(r *http.Request) string {
 		root = repl.ReplaceAll("{http.vars.root}", ".")
 	}
 	path := caddyhttp.SanitizedPathJoin(root, r.URL.Path)
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) //nolint:gosec // SanitizedPathJoin keeps the path under root
 	if err != nil || !info.Mode().IsRegular() {
 		return ""
 	}
@@ -184,12 +184,12 @@ func (c *hashCache) get(path string, info os.FileInfo) (string, error) {
 		return e.hash, nil
 	}
 
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // the path cacheControl joined under root
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
-	h := md5.New()
+	h := md5.New() //nolint:gosec // a cache-busting hash, not a security one
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}

@@ -88,7 +88,7 @@ func TestStaticCacheControl(t *testing.T) {
 		{"/skins/missing.svg?" + iconHash, 404, ""},
 		{"/skins/entry.php", 200, ""},
 	} {
-		rec := serve(t, s, root, httptest.NewRequest(http.MethodGet, test.uri, nil))
+		rec := serve(t, s, root, httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.uri, nil))
 		if rec.Code != test.status {
 			t.Errorf("%s: status %d, want %d", test.uri, rec.Code, test.status)
 		}
@@ -103,14 +103,14 @@ func TestStaticNotModifiedAndRange(t *testing.T) {
 	uri := "/skins/icon.svg?" + iconHash
 	want := "public, s-maxage=31536000, max-age=31536000, immutable"
 
-	first := serve(t, s, root, httptest.NewRequest(http.MethodGet, uri, nil))
-	req := httptest.NewRequest(http.MethodGet, uri, nil)
+	first := serve(t, s, root, httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil)
 	req.Header.Set("If-Modified-Since", first.Header().Get("Last-Modified"))
 	if rec := serve(t, s, root, req); rec.Code != http.StatusNotModified || rec.Header().Get("Cache-Control") != want {
 		t.Errorf("304: got %d %q", rec.Code, rec.Header().Get("Cache-Control"))
 	}
 
-	req = httptest.NewRequest(http.MethodGet, uri, nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil)
 	req.Header.Set("Range", "bytes=0-2")
 	if rec := serve(t, s, root, req); rec.Code != http.StatusPartialContent || rec.Header().Get("Cache-Control") != want {
 		t.Errorf("206: got %d %q", rec.Code, rec.Header().Get("Cache-Control"))
@@ -121,14 +121,14 @@ func TestStaticNotModifiedAndRange(t *testing.T) {
 func TestStaticRehashesChangedFile(t *testing.T) {
 	s, root := newStatic(t)
 	uri := "/skins/icon.svg?" + iconHash
-	if cc := serve(t, s, root, httptest.NewRequest(http.MethodGet, uri, nil)).Header().Get("Cache-Control"); cc == "" {
+	if cc := serve(t, s, root, httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil)).Header().Get("Cache-Control"); cc == "" {
 		t.Fatal("no Cache-Control on the first request")
 	}
 	if err := os.WriteFile(filepath.Join(root, "skins/icon.svg"), []byte("<svg id=\"new\"/>\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	want := "public, s-maxage=60, max-age=60, must-revalidate"
-	if cc := serve(t, s, root, httptest.NewRequest(http.MethodGet, uri, nil)).Header().Get("Cache-Control"); cc != want {
+	if cc := serve(t, s, root, httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil)).Header().Get("Cache-Control"); cc != want {
 		t.Errorf("after the file changed: %q, want %q", cc, want)
 	}
 }
@@ -163,7 +163,7 @@ func TestHandlerStatic(t *testing.T) {
 	repl := caddy.NewReplacer()
 	repl.Set("http.vars.root", root)
 	for _, uri := range []string{"/skins/icon.svg?" + iconHash, "/skins/icon.svg?" + iconHash} {
-		req := httptest.NewRequest(http.MethodGet, uri, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, uri, nil)
 		req = req.WithContext(context.WithValue(req.Context(), caddy.ReplacerCtxKey, repl))
 		rec := httptest.NewRecorder()
 		if err := h.ServeHTTP(rec, req, fileServer(root)); err != nil {
@@ -172,7 +172,7 @@ func TestHandlerStatic(t *testing.T) {
 		if cc := rec.Header().Get("Cache-Control"); cc != "public, s-maxage=31536000, max-age=31536000, immutable" {
 			t.Errorf("%s: Cache-Control %q", uri, cc)
 		}
-		if _, err := h.backend.get(h.createKey(req)); err != ErrKeyNotFound {
+		if _, err := h.backend.get(h.createKey(req)); !errors.Is(err, ErrKeyNotFound) {
 			t.Errorf("%s: the page cache stored a static file (err = %v)", uri, err)
 		}
 	}
@@ -265,7 +265,7 @@ func TestStaticWriterPaths(t *testing.T) {
 	} {
 		repl := caddy.NewReplacer()
 		repl.Set("http.vars.root", root)
-		req := httptest.NewRequest(http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
 		req = req.WithContext(context.WithValue(req.Context(), caddy.ReplacerCtxKey, repl))
 		rec := httptest.NewRecorder()
 		if err := s.serve(rec, req, h); err != nil {
@@ -283,7 +283,7 @@ func TestStaticSkipsDirectoriesAndUnreadableFiles(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		return nil
 	})
-	if cc := serve(t, s, root, httptest.NewRequest(http.MethodGet, "/skins/?"+iconHash, nil)).Header().Get("Cache-Control"); cc != "" {
+	if cc := serve(t, s, root, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/skins/?"+iconHash, nil)).Header().Get("Cache-Control"); cc != "" {
 		t.Errorf("directory: %q", cc)
 	}
 
@@ -295,7 +295,7 @@ func TestStaticSkipsDirectoriesAndUnreadableFiles(t *testing.T) {
 	}
 	repl := caddy.NewReplacer()
 	repl.Set("http.vars.root", root)
-	req := httptest.NewRequest(http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
 	req = req.WithContext(context.WithValue(req.Context(), caddy.ReplacerCtxKey, repl))
 	rec := httptest.NewRecorder()
 	if err := s.serve(rec, req, ok); err != nil {
@@ -312,7 +312,7 @@ func TestStaticValidate(t *testing.T) {
 		{UnversionedMaxAge: -1},
 		{MismatchMaxAge: -1},
 	} {
-		h := Handler{Config: Config{Backend: "ristretto", PurgeAcl: []string{}, Static: &s}}
+		h := Handler{Config: Config{Backend: "ristretto", PurgeACL: []string{}, Static: &s}}
 		if err := h.Validate(); err == nil {
 			t.Errorf("%+v: no error", s)
 		}
@@ -333,7 +333,7 @@ func TestStaticEarlyHints(t *testing.T) {
 	s, root := newStatic(t)
 	repl := caddy.NewReplacer()
 	repl.Set("http.vars.root", root)
-	req := httptest.NewRequest(http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/skins/icon.svg?"+iconHash, nil)
 	req = req.WithContext(context.WithValue(req.Context(), caddy.ReplacerCtxKey, repl))
 	rec := &statusRecorder{ResponseRecorder: httptest.NewRecorder()}
 	err := s.serve(rec, req, caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
