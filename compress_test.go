@@ -21,7 +21,7 @@ func TestEntriesAreStoredCompressed(t *testing.T) {
 	h := Handler{logger: zap.NewNop(), backend: b}
 	page := strings.Repeat("<p>femiwiki</p>\n", 500)
 	calls := 0
-	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 		calls++
 		w.Header().Set("Cache-Control", "s-maxage=18000, must-revalidate, max-age=0")
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
@@ -31,7 +31,7 @@ func TestEntriesAreStoredCompressed(t *testing.T) {
 	})
 	get := func(acceptEncoding string) *httptest.ResponseRecorder {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodGet, "/w/Page", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Page", nil)
 		if acceptEncoding != "" {
 			req.Header.Set("Accept-Encoding", acceptEncoding)
 		}

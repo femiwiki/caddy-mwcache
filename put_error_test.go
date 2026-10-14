@@ -20,14 +20,14 @@ func (droppingBackend) delete(string) error        { return nil }
 
 func TestDroppedWriteStillServes(t *testing.T) {
 	h := Handler{logger: zap.NewNop(), backend: droppingBackend{}}
-	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 		w.Header().Set("Cache-Control", "s-maxage=1200, must-revalidate, max-age=0")
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		_, err := w.Write([]byte("<p>page</p>"))
 		return err
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/w/Main", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Main", nil)
 	rec := httptest.NewRecorder()
 	if err := h.ServeHTTP(rec, req, upstream); err != nil {
 		t.Fatalf("expected the page, got error %v", err)

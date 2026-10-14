@@ -16,7 +16,7 @@ func TestRedirectWithEmptyBody(t *testing.T) {
 	}
 	h := Handler{logger: zap.NewNop(), backend: b}
 	calls := 0
-	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	upstream := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 		calls++
 		w.Header().Set("Cache-Control", "s-maxage=1200, must-revalidate, max-age=0")
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
@@ -26,7 +26,7 @@ func TestRedirectWithEmptyBody(t *testing.T) {
 	})
 
 	for i, acceptEncoding := range []string{"gzip", "gzip", ""} {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 		if acceptEncoding != "" {
 			req.Header.Set("Accept-Encoding", acceptEncoding)
 		}
@@ -52,7 +52,7 @@ func TestRedirectWithEmptyBody(t *testing.T) {
 		t.Errorf("Expected one call upstream but got %d", calls)
 	}
 
-	req := httptest.NewRequest(http.MethodHead, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodHead, "/", nil)
 	rec := httptest.NewRecorder()
 	if err := h.ServeHTTP(rec, req, upstream); err != nil {
 		t.Fatal(err)

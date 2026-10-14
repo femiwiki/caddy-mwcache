@@ -31,8 +31,8 @@ func TestServingLogsNothingAtInfo(t *testing.T) {
 			t.Fatal(err)
 		}
 		core, logs := observer.New(zapcore.InfoLevel)
-		h := Handler{logger: zap.New(core), backend: b, Config: Config{PurgeAcl: []string{"192.0.2.0/24"}}}
-		next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		h := Handler{logger: zap.New(core), backend: b, Config: Config{PurgeACL: []string{"192.0.2.0/24"}}}
+		next := caddyhttp.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) error {
 			w.Header().Set("Cache-Control", test.cacheControl)
 			if test.date != "" {
 				w.Header().Set("Date", test.date)
@@ -43,7 +43,7 @@ func TestServingLogsNothingAtInfo(t *testing.T) {
 
 		// httptest.NewRequest comes from 192.0.2.1
 		for _, method := range []string{http.MethodGet, http.MethodGet, "PURGE"} {
-			req := httptest.NewRequest(method, "/w/Main", nil)
+			req := httptest.NewRequestWithContext(t.Context(), method, "/w/Main", nil)
 			if test.cookie != "" {
 				req.Header.Set("Cookie", test.cookie)
 			}

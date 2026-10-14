@@ -1,6 +1,7 @@
 package mwcache
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,9 +44,9 @@ func TestCreateKey(t *testing.T) {
 		{"[::1]", "/w/Main", "::1/w/Main"},
 		{"", "/w/Main", "/w/Main"},
 	} {
-		req := httptest.NewRequest(http.MethodGet, test.target, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.target, nil)
 		req.Host = test.host
-		if actual := (Handler{}).createKey(req); actual != test.expected {
+		if actual := (&Handler{}).createKey(req); actual != test.expected {
 			t.Errorf("%q %s: expected %q but got %q", test.host, test.target, test.expected, actual)
 		}
 	}
@@ -84,9 +85,7 @@ type upstream struct {
 
 func (u *upstream) ServeHTTP(w http.ResponseWriter, _ *http.Request) error {
 	u.calls++
-	for k, v := range u.header {
-		w.Header()[k] = v
-	}
+	maps.Copy(w.Header(), u.header)
 	w.WriteHeader(u.status)
 	if u.body == "" {
 		return nil
@@ -100,7 +99,7 @@ func newTestHandler() (Handler, mapBackend) {
 	return Handler{
 		logger:  zap.NewNop(),
 		backend: b,
-		Config:  Config{PurgeAcl: []string{"10.0.0.0/8"}},
+		Config:  Config{PurgeACL: []string{"10.0.0.0/8"}},
 	}, b
 }
 
@@ -130,11 +129,11 @@ func TestSecondReadIsServedFromCache(t *testing.T) {
 	h, b := newTestHandler()
 	next := cacheableUpstream()
 
-	first := serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
+	first := serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
 	if _, ok := b[articleKey]; !ok {
 		t.Fatal("the response was not stored")
 	}
-	second := serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
+	second := serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
 
 	if next.calls != 1 {
 		t.Errorf("upstream saw %d requests, want 1", next.calls)

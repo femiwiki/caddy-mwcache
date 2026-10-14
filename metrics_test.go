@@ -1,6 +1,7 @@
 package mwcache
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/caddyserver/caddy/v2"
@@ -18,7 +19,7 @@ func TestMetricsAreCollected(t *testing.T) {
 	if err := h.Provision(caddy.Context{}); err != nil {
 		t.Fatalf("Provision: %v", err)
 	}
-	if _, err := h.backend.get("a key nothing put"); err != ErrKeyNotFound {
+	if _, err := h.backend.get("a key nothing put"); !errors.Is(err, ErrKeyNotFound) {
 		t.Fatalf("get: %v", err)
 	}
 

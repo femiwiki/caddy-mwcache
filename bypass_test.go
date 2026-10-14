@@ -22,8 +22,8 @@ func TestUncacheableResponsesAreNotStored(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, b := newTestHandler()
-			serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
-			serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
+			serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
+			serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
 			if len(b) != 0 {
 				t.Errorf("stored %v", b)
 			}
@@ -45,9 +45,9 @@ func TestPersonalRequestsSkipTheCache(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			h, b := newTestHandler()
 			next := cacheableUpstream()
-			serveCached(t, h, next, httptest.NewRequest(http.MethodGet, "/w/Article", nil))
+			serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil))
 
-			r := httptest.NewRequest(http.MethodGet, "/w/Article", nil)
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/Article", nil)
 			prepare(r)
 			serveCached(t, h, next, r)
 

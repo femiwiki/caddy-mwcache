@@ -4,12 +4,68 @@ version: "2"
 linters:
   default: standard
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
+    - copyloopvar
     - cyclop
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
     - funlen
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocognit
     - gocritic
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - iface
+    - inamedparam
+    - interfacebloat
+    - intrange
+    - maintidx
+    - makezero
+    - mirror
     - misspell
+    - modernize
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
     - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - reassign
+    - recvcheck
+    - revive
+    - testableexamples
+    - thelper
+    - tparallel
     - unconvert
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
   settings:
     cyclop:
       # The most complex function in the tree is UnmarshalCaddyfile at 15.
@@ -27,11 +83,19 @@ linters:
       disabled-checks:
         # The single case is the only backend implemented so far, not a typo.
         - singleCaseSwitch
+    gosec:
+      excludes:
+        # errcheck reports unchecked errors, with the exclusion above.
+        - G104
     govet:
       enable:
         - nilness
     misspell:
       locale: US
+    recvcheck:
+      exclusions:
+        # Caddy registers modules by value.
+        - "*.CaddyModule"
     nolintlint:
       require-explanation: true
       require-specific: true
@@ -41,6 +105,12 @@ linters:
       - path: _test\.go
         linters:
           - funlen
+          - gocognit
+      # Test fixtures repeat hosts on purpose and write throwaway files.
+      - path: _test\.go
+        linters:
+          - dupword
+          - gosec
 
 formatters:
   enable:

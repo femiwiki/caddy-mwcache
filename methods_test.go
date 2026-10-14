@@ -19,7 +19,7 @@ func TestPurge(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			h, b := newTestHandler()
 			b[articleKey] = "cached"
-			r := httptest.NewRequest("PURGE", "/w/Article", nil)
+			r := httptest.NewRequestWithContext(t.Context(), "PURGE", "/w/Article", nil)
 			r.RemoteAddr = test.remote
 
 			w := serveCached(t, h, &upstream{}, r)
@@ -39,8 +39,8 @@ func TestOtherMethodsPassThrough(t *testing.T) {
 	h, b := newTestHandler()
 	next := cacheableUpstream()
 
-	serveCached(t, h, next, httptest.NewRequest(http.MethodPost, "/w/Article", nil))
-	serveCached(t, h, next, httptest.NewRequest(http.MethodPost, "/w/Article", nil))
+	serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/w/Article", nil))
+	serveCached(t, h, next, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/w/Article", nil))
 
 	if next.calls != 2 || len(b) != 0 {
 		t.Errorf("upstream saw %d requests and %d entries were stored, want 2 and 0", next.calls, len(b))

@@ -1,6 +1,7 @@
 package mwcache
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -52,7 +53,7 @@ func (ht *headTest) serve(t *testing.T, method string) *httptest.ResponseRecorde
 
 func (ht *headTest) serveWith(t *testing.T, method string, acceptEncoding string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(method, headTestURL, nil)
+	req := httptest.NewRequestWithContext(t.Context(), method, headTestURL, nil)
 	if acceptEncoding != "" {
 		req.Header.Set("Accept-Encoding", acceptEncoding)
 	}
@@ -73,7 +74,7 @@ func TestHeadDoesNotFillTheCache(t *testing.T) {
 	if rec := ht.serve(t, http.MethodHead); rec.Body.Len() != 0 {
 		t.Errorf("HEAD: expected no body, got %d bytes", rec.Body.Len())
 	}
-	if _, err := ht.b.get(headTestKey); err != ErrKeyNotFound {
+	if _, err := ht.b.get(headTestKey); !errors.Is(err, ErrKeyNotFound) {
 		t.Errorf("HEAD left an entry: %v", err)
 	}
 	if rec := ht.serve(t, http.MethodGet); rec.Body.String() != ".site{color:red}" {

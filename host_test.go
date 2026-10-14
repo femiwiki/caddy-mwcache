@@ -1,6 +1,7 @@
 package mwcache
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -26,7 +27,7 @@ func newHostTest(t *testing.T) *hostTest {
 		t.Fatal(err)
 	}
 	ht := &hostTest{
-		h: Handler{logger: zap.NewNop(), backend: b, Config: Config{PurgeAcl: []string{"127.0.0.1"}}},
+		h: Handler{logger: zap.NewNop(), backend: b, Config: Config{PurgeACL: []string{"127.0.0.1"}}},
 		b: b,
 	}
 	ht.next = caddyhttp.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -41,7 +42,7 @@ func newHostTest(t *testing.T) *hostTest {
 
 func (ht *hostTest) serve(t *testing.T, method string, host string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(method, "/w/Main", nil)
+	req := httptest.NewRequestWithContext(t.Context(), method, "/w/Main", nil)
 	req.Host = host
 	req.RemoteAddr = "127.0.0.1:34567"
 	rec := httptest.NewRecorder()
@@ -75,7 +76,7 @@ func TestPurgeDeletesOnlyItsHost(t *testing.T) {
 	if rec := ht.serve(t, "PURGE", "m.femiwiki.com:80"); rec.Code != http.StatusNoContent {
 		t.Fatalf("PURGE: expected 204, got %d", rec.Code)
 	}
-	if _, err := ht.b.get("m.femiwiki.com/w/Main"); err != ErrKeyNotFound {
+	if _, err := ht.b.get("m.femiwiki.com/w/Main"); !errors.Is(err, ErrKeyNotFound) {
 		t.Errorf("the purged entry is still there: %v", err)
 	}
 	if _, err := ht.b.get("femiwiki.com/w/Main"); err != nil {
@@ -107,7 +108,7 @@ func TestPurgeThroughAnAlias(t *testing.T) {
 	if rec := ht.serve(t, "PURGE", "127.0.0.1:80"); rec.Code != http.StatusNoContent {
 		t.Fatalf("PURGE: expected 204, got %d", rec.Code)
 	}
-	if _, err := ht.b.get("femiwiki.com/w/Main"); err != ErrKeyNotFound {
+	if _, err := ht.b.get("femiwiki.com/w/Main"); !errors.Is(err, ErrKeyNotFound) {
 		t.Errorf("the purged entry is still there: %v", err)
 	}
 	if _, err := ht.b.get("m.femiwiki.com/w/Main"); err != nil {
@@ -120,7 +121,7 @@ func TestPurgeThroughAnAlias(t *testing.T) {
 }
 
 func TestHostWithSlashIsUncacheable(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/w/X", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/w/X", nil)
 	req.Host = "a/b.femiwiki.com"
 	if requestIsCacheable(req) {
 		t.Error("a host with a slash should bypass the cache")
