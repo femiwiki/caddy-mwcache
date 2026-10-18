@@ -17,16 +17,21 @@ const metricsNamespace, metricsSubsystem = "caddy", "mwcache"
 type ristrettoCollector struct {
 	read  func() *ristretto.Metrics
 	descs []*prometheus.Desc
+	kinds []prometheus.ValueType
 	value []func(*ristretto.Metrics) float64
 }
 
 func newRistrettoCollector(read func() *ristretto.Metrics) *ristrettoCollector {
 	c := &ristrettoCollector{read: read}
-	add := func(name, help string, value func(*ristretto.Metrics) float64) {
+	addAs := func(kind prometheus.ValueType, name, help string, value func(*ristretto.Metrics) float64) {
 		c.descs = append(c.descs, prometheus.NewDesc(
 			prometheus.BuildFQName(metricsNamespace, metricsSubsystem, name), help, nil, nil,
 		))
+		c.kinds = append(c.kinds, kind)
 		c.value = append(c.value, value)
+	}
+	add := func(name, help string, value func(*ristretto.Metrics) float64) {
+		addAs(prometheus.CounterValue, name, help, value)
 	}
 	add("hits_total", "Responses served from the cache.",
 		func(m *ristretto.Metrics) float64 { return float64(m.Hits()) })
@@ -43,8 +48,9 @@ func newRistrettoCollector(read func() *ristretto.Metrics) *ristrettoCollector {
 		func(m *ristretto.Metrics) float64 { return float64(m.SetsRejected()) })
 	add("sets_dropped_total", "Entries dropped because the set buffer was full.",
 		func(m *ristretto.Metrics) float64 { return float64(m.SetsDropped()) })
-	add("cost_added_total", "Cost of the entries admitted.",
-		func(m *ristretto.Metrics) float64 { return float64(m.CostAdded()) })
+	// Ristretto's added cost drops when an entry is replaced by a cheaper one,
+	// so it is reported less the evicted cost, as a gauge.
+	addAs(prometheus.GaugeValue, "cost_used", "Cost of the entries the cache holds now.", costUsed)
 	add("cost_evicted_total", "Cost of the entries evicted.",
 		func(m *ristretto.Metrics) float64 { return float64(m.CostEvicted()) })
 	return c
@@ -65,8 +71,15 @@ func (c *ristrettoCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for i, d := range c.descs {
-		ch <- prometheus.MustNewConstMetric(d, prometheus.CounterValue, c.value[i](m))
+		ch <- prometheus.MustNewConstMetric(d, c.kinds[i], c.value[i](m))
 	}
+}
+
+// costUsed reads the evicted cost first, as an entry is evicted only after it
+// was added, so a set between the two reads cannot take it below zero.
+func costUsed(m *ristretto.Metrics) float64 {
+	evicted := float64(m.CostEvicted())
+	return max(0, float64(m.CostAdded())-evicted)
 }
 
 // currentMetrics reads the counters of the backend that is running now, so a
