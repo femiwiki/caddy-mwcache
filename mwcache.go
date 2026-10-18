@@ -183,10 +183,7 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		if errors.Is(err, ErrKeyNotFound) {
 			h.logger.Debug("cache miss: " + key)
-			if err := h.serveAndCache(key, w, r, next); err != nil {
-				return err
-			}
-			return nil
+			return h.fetch(key, w, r, next)
 		}
 		return err
 	}
@@ -201,7 +198,7 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 	if err := h.writeResponse(w, r, buf, true); err != nil {
 		if errors.Is(err, errStale) {
 			h.logger.Debug("staled, drop: " + key)
-			if err := h.serveAndCache(key, w, r, next); err != nil {
+			if err := h.fetch(key, w, r, next); err != nil {
 				return err
 			}
 		} else {
@@ -211,12 +208,51 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+// fetch serves a miss from upstream, or from the response of the miss for key
+// already in flight, if that one may be cached.
+func (h *Handler) fetch(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	// A HEAD response has no body, and the key does not hold the method, so
 	// storing it would hand an empty body to every GET after it.
 	if r.Method == http.MethodHead {
 		return next.ServeHTTP(w, r)
 	}
+	f, leader := misses.join(key)
+	if f != nil {
+		select {
+		case <-f.done:
+		case <-r.Context().Done():
+			return r.Context().Err()
+		}
+		if f.entry != nil {
+			h.logger.Debug("coalesced: " + key)
+			return h.writeResponse(w, r, bytes.NewBuffer(f.entry), false)
+		}
+		h.logger.Debug("not coalesced, response is unshared: " + key)
+	}
+	if !leader {
+		entry, err := h.serveAndCache(key, w, r, next)
+		if entry != nil {
+			misses.unpass(key)
+		}
+		return err
+	}
+	// Landed in a defer, so that a panic upstream does not leave the
+	// waiters hanging
+	var entry []byte
+	failed := true
+	defer func() {
+		if n := misses.land(key, entry, failed); n > 0 {
+			h.logger.Debug("woke "+strconv.Itoa(n)+" waiting: "+key, zap.Bool("shared", entry != nil))
+		}
+	}()
+	entry, err := h.serveAndCache(key, w, r, next)
+	failed = err != nil
+	return err
+}
+
+// serveAndCache sends r upstream, stores the response if it may be cached and
+// returns it as stored, or nil if it was not.
+func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) ([]byte, error) {
 	buf, _ := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer bufferPool.Put(buf)
@@ -248,17 +284,17 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 
 	// Fetch upstream response
 	if err := next.ServeHTTP(rec, r); err != nil {
-		return err
+		return nil, err
 	}
 	if !rec.Buffered() {
 		// The recorder streamed the response through, so there is nothing left to write
 		h.logger.Debug("response is uncacheable: " + key)
-		return nil
+		return nil, nil
 	}
 
 	entry, err := newEntry(meta, buf.Bytes())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := h.backend.put(key, entry.String()); err != nil {
 		h.logger.Warn("caching failed: "+key, zap.Error(err))
@@ -266,7 +302,10 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 		h.logger.Debug("put cache: " + key)
 	}
 
-	return h.writeResponse(w, r, entry, false)
+	// Taken before writeResponse reads the buffer, and never written again,
+	// so waiters can each read it at once
+	stored := entry.Bytes()
+	return stored, h.writeResponse(w, r, entry, false)
 }
 
 // newEntry stores the body compressed: an entry takes a fifth of the space,

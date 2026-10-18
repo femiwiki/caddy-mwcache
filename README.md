@@ -93,6 +93,16 @@ as an anonymous one. A load.php request with a `user` parameter always
 bypasses the cache. Only `/load.php` exactly counts, which is load.php with
 `$wgScriptPath = ""`.
 
+## Concurrent misses
+
+Misses for one page that arrive while it is being fetched wait for that
+fetch, as in Varnish's [request coalescing], so php-fpm sees one request. They
+are handed the response only if it may be cached. Otherwise each goes to
+php-fpm on its own, all at once, and misses for the page skip the wait for two
+minutes or until a response can be cached again. HEAD misses never wait.
+
+[request coalescing]: https://wikitech.wikimedia.org/wiki/Varnish#Requests_coalescing
+
 ## Static files
 
 A `static` block sets `Cache-Control` on files `file_server` reads off disk,
