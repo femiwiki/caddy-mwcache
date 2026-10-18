@@ -31,29 +31,62 @@ var (
 	backend        Backend
 	backendName    string
 	backendOptions map[string]string
+	// backendUsers counts the handlers provisioned with backend, so a replaced
+	// backend is closed once Caddy cleans up the last of them.
+	backendUsers *int
 )
 
-func sharedBackend(c Config) (Backend, error) {
+// sharedBackend returns the backend for c and the function that the handler
+// calls, once, when it is cleaned up.
+func sharedBackend(c Config) (Backend, func(), error) {
 	backendMu.Lock()
 	defer backendMu.Unlock()
 	if backend != nil && backendName == c.Backend && maps.Equal(backendOptions, c.RistrettoConfig) {
-		return backend, nil
+		return backend, acquireBackend(), nil
 	}
+	var b Backend
 	switch c.Backend {
 	case "":
-		return nil, errors.New("no backend")
+		return nil, nil, errors.New("no backend")
 	case "ristretto":
-		b, err := newRistrettoBackend(c.RistrettoConfig)
+		rb, err := newRistrettoBackend(c.RistrettoConfig)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		backend = b
+		b = rb
 	default:
-		return nil, fmt.Errorf("unknown backend: %s", c.Backend)
+		return nil, nil, fmt.Errorf("unknown backend: %s", c.Backend)
 	}
+	// Nothing holds a backend left without users, such as one built by a
+	// config load that failed
+	if backend != nil && *backendUsers == 0 {
+		backend.close()
+	}
+	backend = b
+	backendUsers = new(int)
 	backendName = c.Backend
 	backendOptions = maps.Clone(c.RistrettoConfig)
-	return backend, nil
+	return backend, acquireBackend(), nil
+}
+
+// acquireBackend counts one more user of the current backend and returns the
+// function that gives it back. The caller holds backendMu.
+func acquireBackend() func() {
+	b, users := backend, backendUsers
+	*users++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			backendMu.Lock()
+			defer backendMu.Unlock()
+			*users--
+			// The current backend stays open without users, so that the next
+			// config load takes it over
+			if *users == 0 && users != backendUsers {
+				b.close()
+			}
+		})
+	}
 }
 
 type metadata struct {
@@ -84,6 +117,7 @@ func init() {
 type Handler struct {
 	logger  *zap.Logger
 	backend Backend
+	release func()
 	// Config is exported so that it survives the trip through the adapted
 	// JSON. A config that is loaded as JSON, by `caddy run --config caddy.json`
 	// or by POSTing it to /load, never runs the Caddyfile adapter, so the
@@ -604,6 +638,7 @@ func hasSessionCookie(r *http.Request) bool {
 var (
 	_ caddy.Module                = (*Handler)(nil)
 	_ caddy.Provisioner           = (*Handler)(nil)
+	_ caddy.CleanerUpper          = (*Handler)(nil)
 	_ caddy.Validator             = (*Handler)(nil)
 	_ caddyhttp.MiddlewareHandler = (*Handler)(nil)
 )

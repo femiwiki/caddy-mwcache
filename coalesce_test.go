@@ -39,6 +39,8 @@ func (b *lockedBackend) delete(key string) error {
 	return b.m.delete(key)
 }
 
+func (b *lockedBackend) close() {}
+
 const concurrentMisses = 20
 
 // gatedUpstream holds every request until release is closed, and numbers

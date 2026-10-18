@@ -74,6 +74,8 @@ func (m mapBackend) delete(key string) error {
 	return nil
 }
 
+func (m mapBackend) close() {}
+
 // upstream stands in for the handler behind mwcache and counts the requests
 // that reach it.
 type upstream struct {

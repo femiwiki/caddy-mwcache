@@ -136,11 +136,12 @@ func (h *Handler) Validate() error {
 func (h *Handler) Provision(ctx caddy.Context) error {
 	h.logger = ctx.Logger(h)
 	h.logger.Info("logger is created")
-	b, err := sharedBackend(h.Config)
+	b, release, err := sharedBackend(h.Config)
 	if err != nil {
 		return err
 	}
 	h.backend = b
+	h.release = release
 	// A config loaded as JSON never ran the Caddyfile adapter, which
 	// normalizes the hosts as it reads them
 	if len(h.Config.HostAliases) > 0 {
@@ -161,6 +162,15 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 		}
 	}
 	registerMetrics(ctx.GetMetricsRegistry(), h.logger)
+	return nil
+}
+
+// Cleanup implements caddy.CleanerUpper. Caddy calls it when the config that
+// provisioned the handler is unloaded, or when provisioning fails.
+func (h *Handler) Cleanup() error {
+	if h.release != nil {
+		h.release()
+	}
 	return nil
 }
 
