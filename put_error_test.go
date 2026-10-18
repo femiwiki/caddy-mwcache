@@ -17,6 +17,7 @@ type droppingBackend struct{}
 func (droppingBackend) get(string) (string, error) { return "", ErrKeyNotFound }
 func (droppingBackend) put(string, string) error   { return errors.New("set was dropped") }
 func (droppingBackend) delete(string) error        { return nil }
+func (droppingBackend) close()                     {}
 
 func TestDroppedWriteStillServes(t *testing.T) {
 	h := Handler{logger: zap.NewNop(), backend: droppingBackend{}}

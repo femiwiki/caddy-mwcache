@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/stoewer/go-strcase"
@@ -19,6 +20,10 @@ type RistrettoBackend struct {
 	// entry cost the space it takes rather than one of however many the cache
 	// holds.
 	costInBytes bool
+	// mu keeps close from running while a request is inside the cache, as
+	// ristretto's Set, Del and Wait send on a channel that Close closes.
+	mu     sync.RWMutex
+	closed bool
 }
 
 func newRistrettoBackend(rawOptions map[string]string) (*RistrettoBackend, error) {
@@ -146,7 +151,14 @@ func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config[stri
 	return &c, nil
 }
 
+var errClosed = errors.New("cache is closed")
+
 func (m *RistrettoBackend) put(key string, val string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return errClosed
+	}
 	cost := int64(1)
 	if m.costInBytes {
 		cost = int64(len(val))
@@ -160,10 +172,20 @@ func (m *RistrettoBackend) put(key string, val string) error {
 // wait blocks until the entries passed to put have been applied, which
 // ristretto does asynchronously. Only tests need it.
 func (m *RistrettoBackend) wait() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return
+	}
 	m.cache.Wait()
 }
 
 func (m *RistrettoBackend) get(key string) (string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return "", ErrKeyNotFound
+	}
 	val, ok := m.cache.Get(key)
 	if !ok {
 		return "", ErrKeyNotFound
@@ -172,8 +194,23 @@ func (m *RistrettoBackend) get(key string) (string, error) {
 }
 
 func (m *RistrettoBackend) delete(key string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.closed {
+		return nil
+	}
 	m.cache.Del(key)
 	return nil
+}
+
+func (m *RistrettoBackend) close() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
+	m.cache.Close()
 }
 
 // Interface guards

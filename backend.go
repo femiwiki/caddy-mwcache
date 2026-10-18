@@ -15,4 +15,7 @@ type Backend interface {
 	get(key string) (string, error)
 	put(key string, val string) error
 	delete(key string) error
+	// close stops the backend and drops what it holds. The other methods
+	// still return safely afterwards.
+	close()
 }
