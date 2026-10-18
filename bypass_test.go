@@ -38,9 +38,11 @@ func TestUncacheableResponsesAreNotStored(t *testing.T) {
 // past the cache in both directions. load.php is the exception, in loadphp_test.go.
 func TestPersonalRequestsSkipTheCache(t *testing.T) {
 	for name, prepare := range map[string]func(*http.Request){
-		"session cookie": func(r *http.Request) { r.Header.Set("Cookie", "femiwiki_session=abc") },
-		"token cookie":   func(r *http.Request) { r.Header.Set("Cookie", "femiwikiToken=abc") },
-		"basic auth":     func(r *http.Request) { r.SetBasicAuth("user", "password") },
+		"session cookie":      func(r *http.Request) { r.Header.Set("Cookie", "femiwiki_session=abc") },
+		"token cookie":        func(r *http.Request) { r.Header.Set("Cookie", "femiwikiToken=abc") },
+		"basic auth":          func(r *http.Request) { r.SetBasicAuth("user", "password") },
+		"bearer token":        func(r *http.Request) { r.Header.Set("Authorization", "Bearer abc") },
+		"empty Authorization": func(r *http.Request) { r.Header.Set("Authorization", "") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			h, b := newTestHandler()

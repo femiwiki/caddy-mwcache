@@ -437,8 +437,9 @@ func normalizeHost(host string) string {
 
 // NOTE: requests to RESTBase is not reach this module because of reverse_proxy has higher order
 func requestIsCacheable(r *http.Request) bool {
-	// don't cache authorized requests
-	if _, _, ok := r.BasicAuth(); ok {
+	// Any Authorization header, an OAuth token too, can log a request in
+	// without a cookie, so it passes the cache as in Wikimedia's Varnish.
+	if _, ok := r.Header["Authorization"]; ok {
 		return false
 	}
 	// HTTP/2 does not check :authority, and a host with a slash in it would
