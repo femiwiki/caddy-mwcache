@@ -103,6 +103,12 @@ minutes or until a response can be cached again. HEAD misses never wait.
 
 [request coalescing]: https://wikitech.wikimedia.org/wiki/Varnish#Requests_coalescing
 
+## Conditional requests
+
+A hit answers `If-None-Match`, or failing that `If-Modified-Since`, with a 304
+when the stored 200 satisfies it. Without a `Last-Modified`, the stored `Date`
+stands in for it. Every hit carries an `Age` counted from the stored `Date`.
+
 ## Static files
 
 A `static` block sets `Cache-Control` on files `file_server` reads off disk,

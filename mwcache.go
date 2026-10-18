@@ -372,6 +372,13 @@ func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byt
 	if fromCache && !h.isFresh(meta.Header) {
 		return errStale
 	}
+	if fromCache {
+		setAge(meta.Header, time.Now())
+	}
+	if meta.Status == http.StatusOK && notModified(r, meta.Header) {
+		writeNotModified(w, meta.Header)
+		return nil
+	}
 
 	var body io.Reader = buf
 	if meta.Header.Get("Content-Encoding") == "gzip" && !acceptsGzip(r) {
@@ -403,6 +410,67 @@ func (h *Handler) writeResponse(w http.ResponseWriter, r *http.Request, buf *byt
 		return err
 	}
 	return nil
+}
+
+// setAge adds the Age a shared cache sends, counted from the stored Date.
+// https://www.rfc-editor.org/rfc/rfc9111#section-5.1
+func setAge(header http.Header, now time.Time) {
+	date, err := http.ParseTime(header.Get("Date"))
+	if err != nil {
+		return
+	}
+	age := max(int64(now.Sub(date)/time.Second), 0)
+	header.Set("Age", strconv.FormatInt(age, 10))
+}
+
+// notModified evaluates If-None-Match, or else If-Modified-Since, against a
+// stored 200. https://www.rfc-editor.org/rfc/rfc9111#section-4.3.2
+func notModified(r *http.Request, header http.Header) bool {
+	if inm := r.Header.Get("If-None-Match"); inm != "" {
+		return etagMatches(inm, header.Get("ETag"))
+	}
+	ims, err := http.ParseTime(r.Header.Get("If-Modified-Since"))
+	if err != nil {
+		return false
+	}
+	lastModified := header.Get("Last-Modified")
+	if lastModified == "" {
+		lastModified = header.Get("Date")
+	}
+	modified, err := http.ParseTime(lastModified)
+	if err != nil {
+		return false
+	}
+	return !modified.After(ims)
+}
+
+// etagMatches reports whether any tag in an If-None-Match list matches etag
+// by the weak comparison. A * matches any stored response.
+func etagMatches(list, etag string) bool {
+	if strings.TrimSpace(list) == "*" {
+		return true
+	}
+	if etag == "" {
+		return false
+	}
+	want := strings.TrimPrefix(etag, "W/")
+	for tag := range strings.SplitSeq(list, ",") {
+		if strings.TrimPrefix(strings.TrimSpace(tag), "W/") == want {
+			return true
+		}
+	}
+	return false
+}
+
+// writeNotModified sends a 304 with the stored header, less the fields that
+// describe a body, as net/http's ServeContent does.
+func writeNotModified(w http.ResponseWriter, stored http.Header) {
+	header := w.Header()
+	maps.Copy(header, stored)
+	for _, k := range []string{"Content-Type", "Content-Length", "Content-Encoding"} {
+		header.Del(k)
+	}
+	w.WriteHeader(http.StatusNotModified)
 }
 
 // isFresh investments a request that has the given header is fresh.
