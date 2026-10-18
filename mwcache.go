@@ -159,6 +159,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 			return nil
 		}
 		key := h.createKey(r)
+		renders.purge(key)
 		h.backend.delete(key) //nolint:errcheck // the purge response is 204 whether or not the key was held
 		h.logger.Debug("purged:  " + key)
 		w.WriteHeader(http.StatusNoContent)
@@ -247,6 +248,8 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 	})
 
 	// Fetch upstream response
+	inFlight := renders.start(key)
+	defer renders.finish(key, inFlight)
 	if err := next.ServeHTTP(rec, r); err != nil {
 		return err
 	}
@@ -260,8 +263,15 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	if err := h.backend.put(key, entry.String()); err != nil {
+	if inFlight.purged.Load() {
+		h.logger.Debug("purged while rendering, not cached: " + key)
+	} else if err := h.backend.put(key, entry.String()); err != nil {
 		h.logger.Warn("caching failed: "+key, zap.Error(err))
+	} else if inFlight.purged.Load() {
+		// A PURGE marks the render before it deletes, so one that came after
+		// the check above either deletes this entry itself or is seen here.
+		h.backend.delete(key) //nolint:errcheck // nothing to do if the entry is already gone
+		h.logger.Debug("purged while caching, dropped: " + key)
 	} else {
 		h.logger.Debug("put cache: " + key)
 	}
