@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.0.1...v1.1.0) (2026-10-18)
+
+
+### Features
+
+* answer conditional requests on hits and send Age ([#198](https://github.com/femiwiki/caddy-mwcache/issues/198)) ([c46f9e3](https://github.com/femiwiki/caddy-mwcache/commit/c46f9e3d1f7adcd4574bc8d9f2810491ed1371ee)), closes [#190](https://github.com/femiwiki/caddy-mwcache/issues/190)
+* coalesce concurrent misses for one page ([#197](https://github.com/femiwiki/caddy-mwcache/issues/197)) ([fee2a51](https://github.com/femiwiki/caddy-mwcache/commit/fee2a513c32f369bc212894c4cafc912c3800d5d)), closes [#189](https://github.com/femiwiki/caddy-mwcache/issues/189)
+
+
+### Bug Fixes
+
+* bypass the cache for any Authorization header ([#194](https://github.com/femiwiki/caddy-mwcache/issues/194)) ([fec5c1e](https://github.com/femiwiki/caddy-mwcache/commit/fec5c1e0ff30215a2dc98083b05cf09097af3c56)), closes [#187](https://github.com/femiwiki/caddy-mwcache/issues/187)
+* close a backend replaced by a config load ([#202](https://github.com/femiwiki/caddy-mwcache/issues/202)) ([7f7fda7](https://github.com/femiwiki/caddy-mwcache/commit/7f7fda70403fd06af02d79b0d76ab5c7b1588cf0)), closes [#181](https://github.com/femiwiki/caddy-mwcache/issues/181)
+* report the cache's cost in use as a gauge ([#199](https://github.com/femiwiki/caddy-mwcache/issues/199)) ([8727229](https://github.com/femiwiki/caddy-mwcache/commit/872722969a11fdaca9b92c55dcc449f0d27b7a60)), closes [#182](https://github.com/femiwiki/caddy-mwcache/issues/182)
+
 ## [1.0.1](https://github.com/femiwiki/caddy-mwcache/compare/v1.0.0...v1.0.1) (2026-10-10)
 
 
