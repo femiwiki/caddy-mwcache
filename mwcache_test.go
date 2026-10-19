@@ -43,6 +43,11 @@ func TestCreateKey(t *testing.T) {
 		{"[::1]:80", "/w/Main", "::1/w/Main"},
 		{"[::1]", "/w/Main", "::1/w/Main"},
 		{"", "/w/Main", "/w/Main"},
+		{"femiwiki.com", "/w/Main?utm_source=fediverse", "femiwiki.com/w/Main"},
+		{"femiwiki.com", "/w/Main?UTM_Source=a&utm_medium=b", "femiwiki.com/w/Main"},
+		{"femiwiki.com", "/index.php?title=Main&utm_source=fediverse&action=raw", "femiwiki.com/index.php?title=Main&action=raw"},
+		{"femiwiki.com", "/index.php?utm_campaign=x&title=%ED%8E%98", "femiwiki.com/index.php?title=%ED%8E%98"},
+		{"femiwiki.com", "/index.php?title=Utm_source", "femiwiki.com/index.php?title=Utm_source"},
 	} {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.target, nil)
 		req.Host = test.host

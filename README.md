@@ -68,7 +68,9 @@ mwcache {
 The cache key is the host and the URI, as Wikimedia's Varnish keys them, so two
 hosts behind one handler never share an entry, and a purge deletes only the
 entry of the host it names. The host is lowercased and loses its port and any
-trailing dot.
+trailing dot. The scheme is left out, as MediaWiki purges over http what it
+serves over https. Campaign parameters (`utm_*`) are left out of the key, so a
+shared link carrying them is served and purged with the page it points to.
 
 MediaWiki sends its purges to `$wgInternalServer`, so their host is that one,
 not the one readers use. Make it an alias of `$wgServer`'s host. A second name

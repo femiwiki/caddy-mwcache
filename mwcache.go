@@ -552,17 +552,33 @@ func (h *Handler) isFresh(header http.Header) bool {
 	return date.Add(maxAge).After(now)
 }
 
-// createKey puts the host before the path, as Wikimedia's Varnish hashes the
-// Host along with the URL, so two sites behind one handler never share an
-// entry. The scheme is left out: MediaWiki purges over http what it serves
-// over https. A host named in HostAliases uses the key of the host it stands
-// for.
+// createKey keys on host and URI, as Wikimedia's Varnish does, without the
+// scheme or utm_* pairs; see the README's Hosts section.
 func (h *Handler) createKey(r *http.Request) string {
 	host := normalizeHost(r.Host)
 	if canonical, ok := h.Config.HostAliases[host]; ok {
 		host = canonical
 	}
-	return host + r.URL.RequestURI()
+	if r.URL.RawQuery == "" {
+		return host + r.URL.RequestURI()
+	}
+	u := *r.URL
+	u.RawQuery = stripCampaignParams(u.RawQuery)
+	u.ForceQuery = false
+	return host + u.RequestURI()
+}
+
+// stripCampaignParams drops the utm_* pairs from a raw query and keeps the
+// rest byte for byte, in order, so other keys stay as they were.
+func stripCampaignParams(rawQuery string) string {
+	pairs := strings.Split(rawQuery, "&")
+	kept := pairs[:0]
+	for _, pair := range pairs {
+		if !strings.HasPrefix(strings.ToLower(pair), "utm_") {
+			kept = append(kept, pair)
+		}
+	}
+	return strings.Join(kept, "&")
 }
 
 // normalizeHost lowercases a Host header and drops its port and any trailing
