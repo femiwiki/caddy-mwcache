@@ -105,7 +105,7 @@ func TestReloadClosesReplacedBackend(t *testing.T) {
 
 	// A closed backend answers as an empty one rather than panic
 	b := old[1].backend
-	if err := b.put("k", "v"); !errors.Is(err, errClosed) {
+	if err := b.put("k", "v", 0); !errors.Is(err, errClosed) {
 		t.Errorf("put on a closed backend returned %v", err)
 	}
 	if _, err := b.get("k"); !errors.Is(err, ErrKeyNotFound) {
@@ -159,9 +159,9 @@ func TestCloseDuringRequests(t *testing.T) {
 	for range 8 {
 		wg.Go(func() {
 			for range 1000 {
-				b.put("k", "v") //nolint:errcheck // a put may fail once the backend is closed
-				b.get("k")      //nolint:errcheck // a closed backend finds nothing
-				b.delete("k")   //nolint:errcheck // only the absence of a panic matters
+				b.put("k", "v", 0) //nolint:errcheck // a put may fail once the backend is closed
+				b.get("k")         //nolint:errcheck // a closed backend finds nothing
+				b.delete("k")      //nolint:errcheck // only the absence of a panic matters
 				b.wait()
 			}
 		})

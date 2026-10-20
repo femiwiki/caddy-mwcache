@@ -1,8 +1,10 @@
 package mwcache
 
 import (
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func newTestBackend(t *testing.T, key, budget string) *RistrettoBackend {
@@ -23,7 +25,7 @@ func newTestBackend(t *testing.T, key, budget string) *RistrettoBackend {
 func TestMaxCostBytesSpendsTheSizeOfTheEntry(t *testing.T) {
 	b := newTestBackend(t, "max_cost_bytes", "4194304")
 	val := strings.Repeat("x", 4096)
-	if err := b.put("/w/a", val); err != nil {
+	if err := b.put("/w/a", val, 0); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
@@ -42,7 +44,7 @@ func TestABudgetInBytesIsSpentInBytes(t *testing.T) {
 	b := newTestBackend(t, "max_cost_bytes", "1048576")
 	val := strings.Repeat("x", 256*1024)
 	for _, key := range []string{"/w/a", "/w/b", "/w/c", "/w/d", "/w/e", "/w/f"} {
-		if err := b.put(key, val); err != nil {
+		if err := b.put(key, val, 0); err != nil {
 			t.Fatalf("put %s: %v", key, err)
 		}
 		b.wait()
@@ -61,7 +63,7 @@ func TestABudgetInBytesIsSpentInBytes(t *testing.T) {
 func TestMaxCostStillCountsEntries(t *testing.T) {
 	b := newTestBackend(t, "max_cost", "10000")
 	val := strings.Repeat("x", 4096)
-	if err := b.put("/w/a", val); err != nil {
+	if err := b.put("/w/a", val, 0); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
@@ -98,5 +100,27 @@ func TestMaxCostBytesPassesValidation(t *testing.T) {
 		"buffer_items":   "64",
 	}); err != nil {
 		t.Errorf("Validate: %v", err)
+	}
+}
+
+// An entry put with a ttl is gone once it runs out, and one put without stays.
+func TestEntryExpiresAfterItsTTL(t *testing.T) {
+	b := newTestBackend(t, "max_cost_bytes", "1048576")
+	if err := b.put("/w/short", "x", 50*time.Millisecond); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	if err := b.put("/w/forever", "x", 0); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	b.wait()
+	if _, err := b.get("/w/short"); err != nil {
+		t.Fatalf("get before the ttl ran out: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := b.get("/w/short"); !errors.Is(err, ErrKeyNotFound) {
+		t.Errorf("get after the ttl ran out: %v, want ErrKeyNotFound", err)
+	}
+	if _, err := b.get("/w/forever"); err != nil {
+		t.Errorf("get of the entry without a ttl: %v", err)
 	}
 }

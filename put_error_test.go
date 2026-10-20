@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"go.uber.org/zap"
@@ -14,10 +15,10 @@ import (
 // is full.
 type droppingBackend struct{}
 
-func (droppingBackend) get(string) (string, error) { return "", ErrKeyNotFound }
-func (droppingBackend) put(string, string) error   { return errors.New("set was dropped") }
-func (droppingBackend) delete(string) error        { return nil }
-func (droppingBackend) close()                     {}
+func (droppingBackend) get(string) (string, error)              { return "", ErrKeyNotFound }
+func (droppingBackend) put(string, string, time.Duration) error { return errors.New("set was dropped") }
+func (droppingBackend) delete(string) error                     { return nil }
+func (droppingBackend) close()                                  {}
 
 func TestDroppedWriteStillServes(t *testing.T) {
 	h := Handler{logger: zap.NewNop(), backend: droppingBackend{}}

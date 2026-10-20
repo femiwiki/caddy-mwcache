@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"go.uber.org/zap"
@@ -116,14 +117,24 @@ func TestHeadIsServedFromTheCache(t *testing.T) {
 }
 
 func TestStaleHeadDoesNotReplaceTheEntry(t *testing.T) {
-	// s-maxage=0 makes the entry stale on its next read
 	ht := newHeadTest(t, "public, max-age=0, s-maxage=0")
-
-	ht.serve(t, http.MethodGet)
-	before, err := ht.b.get(headTestKey)
+	// A stale entry is never stored, so plant one an hour past its s-maxage
+	entry, err := newEntry(metadata{
+		Header: http.Header{
+			"Cache-Control": {"public, s-maxage=60"},
+			"Date":          {time.Now().Add(-time.Hour).UTC().Format(http.TimeFormat)},
+		},
+		Status: http.StatusOK,
+	}, []byte(".site{color:blue}"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	before := entry.String()
+	if err := ht.b.put(headTestKey, before, 0); err != nil {
+		t.Fatal(err)
+	}
+	ht.b.wait()
+
 	ht.serve(t, http.MethodHead)
 	after, err := ht.b.get(headTestKey)
 	if err != nil {
@@ -132,7 +143,7 @@ func TestStaleHeadDoesNotReplaceTheEntry(t *testing.T) {
 	if after != before {
 		t.Error("a stale HEAD replaced the entry")
 	}
-	if want := []string{http.MethodGet, http.MethodHead}; !slices.Equal(ht.calls, want) {
+	if want := []string{http.MethodHead}; !slices.Equal(ht.calls, want) {
 		t.Errorf("expected upstream calls %v, got %v", want, ht.calls)
 	}
 }

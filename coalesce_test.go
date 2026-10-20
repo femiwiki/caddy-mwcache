@@ -27,10 +27,10 @@ func (b *lockedBackend) get(key string) (string, error) {
 	return b.m.get(key)
 }
 
-func (b *lockedBackend) put(key string, val string) error {
+func (b *lockedBackend) put(key string, val string, ttl time.Duration) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.m.put(key, val)
+	return b.m.put(key, val, ttl)
 }
 
 func (b *lockedBackend) delete(key string) error {
