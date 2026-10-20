@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -64,7 +65,7 @@ func (m mapBackend) get(key string) (string, error) {
 	return val, nil
 }
 
-func (m mapBackend) put(key string, val string) error {
+func (m mapBackend) put(key string, val string, _ time.Duration) error {
 	m[key] = val
 	return nil
 }

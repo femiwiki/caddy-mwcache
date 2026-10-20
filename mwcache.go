@@ -330,7 +330,12 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return nil, err
 	}
-	if err := h.backend.put(key, entry.String()); err != nil {
+	// The backend lets the entry go once it is stale, rather than keeping
+	// it until eviction for a hit that would only refetch it.
+	ttl, expires := h.freshFor(meta.Header, time.Now())
+	if expires && ttl <= 0 {
+		h.logger.Debug("response is already stale: " + key)
+	} else if err := h.backend.put(key, entry.String(), ttl); err != nil {
 		h.logger.Warn("caching failed: "+key, zap.Error(err))
 	} else {
 		h.logger.Debug("put cache: " + key)
@@ -507,49 +512,47 @@ func writeNotModified(w http.ResponseWriter, stored http.Header) {
 	w.WriteHeader(http.StatusNotModified)
 }
 
-// isFresh investments a request that has the given header is fresh.
-// Targets only mediawiki-specific directives defined below files:
-//   - https://github.com/wikimedia/mediawiki/blob/master/includes/OutputPage.php
-//   - https://github.com/wikimedia/mediawiki/blob/master/includes/api/ApiMain.php
-//   - https://github.com/wikimedia/mediawiki/blob/master/includes/AjaxResponse.php
+// isFresh reports whether a stored response with the given header is still
+// fresh. A header that gives no lifetime counts as fresh.
 func (h *Handler) isFresh(header http.Header) bool {
-	var maxAgeInt uint64
-	var err error
-	var date time.Time
+	lifetime, ok := h.freshFor(header, time.Now())
+	return !ok || lifetime > 0
+}
 
+// freshFor returns how long a response stays fresh from now by the s-maxage
+// MediaWiki sends and its Date, and false if the header gives no lifetime.
+func (h *Handler) freshFor(header http.Header, now time.Time) (time.Duration, bool) {
 	cc := header.Get("Cache-Control")
 	if cc == "" {
 		// Cache-Control directive is not provided.
 		h.logger.Debug("stored cache has no Cache-Control header")
-		return true
+		return 0, false
 	}
 	submatch := sMaxAge.FindStringSubmatch(cc)
 	if len(submatch) != 2 {
 		h.logger.Debug("Cache-Control has no s-maxage")
-		return true
+		return 0, false
 	}
 	maxAgeStr := submatch[1]
-	if maxAgeInt, err = strconv.ParseUint(maxAgeStr, 10, 32); err != nil {
+	maxAgeInt, err := strconv.ParseUint(maxAgeStr, 10, 32)
+	if err != nil {
 		h.logger.Debug("parsing " + maxAgeStr + " failed")
-		return true
+		return 0, false
 	}
 
 	dateHeader := header.Get("Date")
 	if dateHeader == "" {
 		h.logger.Debug("Date header is missing")
-		return true
+		return 0, false
 	}
-
-	date, err = http.ParseTime(dateHeader)
+	date, err := http.ParseTime(dateHeader)
 	if err != nil {
 		h.logger.Debug("parsing " + dateHeader + " failed")
-		return true
+		return 0, false
 	}
-	date = date.UTC()
-	now := time.Now().UTC()
 
 	maxAge := time.Duration(maxAgeInt) * time.Second
-	return date.Add(maxAge).After(now)
+	return date.Add(maxAge).Sub(now), true
 }
 
 // createKey puts the host before the path, as Wikimedia's Varnish hashes the

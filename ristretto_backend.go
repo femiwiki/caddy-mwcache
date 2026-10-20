@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/stoewer/go-strcase"
@@ -153,7 +154,7 @@ func parseRistrettoOptions(rawOptions map[string]string) (*ristretto.Config[stri
 
 var errClosed = errors.New("cache is closed")
 
-func (m *RistrettoBackend) put(key string, val string) error {
+func (m *RistrettoBackend) put(key string, val string, ttl time.Duration) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.closed {
@@ -163,7 +164,7 @@ func (m *RistrettoBackend) put(key string, val string) error {
 	if m.costInBytes {
 		cost = int64(len(val))
 	}
-	if ok := m.cache.Set(key, val, cost); !ok {
+	if ok := m.cache.SetWithTTL(key, val, cost, ttl); !ok {
 		return errors.New("set was dropped")
 	}
 	return nil

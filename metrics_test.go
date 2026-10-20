@@ -63,12 +63,12 @@ func TestMetricsAreCollected(t *testing.T) {
 // counter must never do, so the cost is reported as what the cache holds.
 func TestCostUsedFollowsACheaperReplacement(t *testing.T) {
 	b := newTestBackend(t, "max_cost_bytes", "4194304")
-	if err := b.put("/w/a", strings.Repeat("x", 8192)); err != nil {
+	if err := b.put("/w/a", strings.Repeat("x", 8192), 0); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
 	before := costUsed(b.cache.Metrics)
-	if err := b.put("/w/a", strings.Repeat("x", 1024)); err != nil {
+	if err := b.put("/w/a", strings.Repeat("x", 1024), 0); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
