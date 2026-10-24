@@ -28,28 +28,37 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 		}
 
 		for d.NextBlock(0) {
-			switch d.Val() {
-			case "ristretto":
-				// Use default backend
-				if err := unmarshalRistretto(d, c); err != nil {
-					return err
-				}
-			case "static":
-				s, err := unmarshalStatic(d)
-				if err != nil {
-					return err
-				}
-				c.Static = s
-			case "host_alias":
-				if err := unmarshalHostAlias(d, c); err != nil {
-					return err
-				}
-			case "purge_acl":
-				unmarshalPurgeACL(d, c)
-			default:
-				return d.ArgErr()
+			if err := unmarshalOption(d, c); err != nil {
+				return err
 			}
 		}
+	}
+	return nil
+}
+
+// unmarshalOption reads one option of the mwcache block.
+func unmarshalOption(d *caddyfile.Dispenser, c *Config) error {
+	switch d.Val() {
+	case "ristretto":
+		// Use default backend
+		return unmarshalRistretto(d, c)
+	case "static":
+		s, err := unmarshalStatic(d)
+		if err != nil {
+			return err
+		}
+		c.Static = s
+	case "host_alias":
+		return unmarshalHostAlias(d, c)
+	case "purge_acl":
+		unmarshalPurgeACL(d, c)
+	case "vary_accept_language":
+		if d.NextArg() {
+			return d.ArgErr()
+		}
+		c.VaryAcceptLanguage = true
+	default:
+		return d.ArgErr()
 	}
 	return nil
 }

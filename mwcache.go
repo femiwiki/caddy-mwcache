@@ -135,6 +135,9 @@ type Config struct {
 	// fills, such as 127.0.0.1, where MediaWiki sends its PURGEs, to the
 	// public host.
 	HostAliases map[string]string `json:"host_aliases,omitempty"`
+	// VaryAcceptLanguage stores a response that varies on Accept-Language
+	// once per Accept-Language instead of handing it to every client.
+	VaryAcceptLanguage bool `json:"vary_accept_language,omitempty"`
 }
 
 // CaddyModule implements caddy.Module
@@ -212,12 +215,19 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 		h.logger.Debug("request is uncacheable: " + r.URL.RequestURI())
 		return next.ServeHTTP(w, r)
 	}
-	key := h.createKey(r)
+	page := h.createKey(r)
+	key := page
 	val, err := h.backend.get(key)
+	if err == nil && h.Config.VaryAcceptLanguage {
+		if generation, ok := markerGeneration(val); ok {
+			key = variantKey(page, generation, r)
+			val, err = h.backend.get(key)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, ErrKeyNotFound) {
 			h.logger.Debug("cache miss: " + key)
-			return h.fetch(key, w, r, next)
+			return h.fetch(page, w, r, next)
 		}
 		return err
 	}
@@ -232,7 +242,7 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 	if err := h.writeResponse(w, r, buf, true); err != nil {
 		if errors.Is(err, errStale) {
 			h.logger.Debug("staled, drop: " + key)
-			if err := h.fetch(key, w, r, next); err != nil {
+			if err := h.fetch(page, w, r, next); err != nil {
 				return err
 			}
 		} else {
@@ -242,13 +252,17 @@ func (h *Handler) serveUsingCacheIfAvaliable(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// fetch serves a miss from upstream, or from the response of the miss for key
-// already in flight, if that one may be cached.
-func (h *Handler) fetch(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+// fetch serves a miss for the page at key from upstream, or from the response
+// of the miss for it already in flight, if that one may be cached.
+func (h *Handler) fetch(page string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	// A HEAD response has no body, and the key does not hold the method, so
 	// storing it would hand an empty body to every GET after it.
 	if r.Method == http.MethodHead {
 		return next.ServeHTTP(w, r)
+	}
+	key := page
+	if h.Config.VaryAcceptLanguage {
+		key = languageKey(page, r)
 	}
 	f, leader := misses.join(key)
 	if f != nil {
@@ -264,7 +278,7 @@ func (h *Handler) fetch(key string, w http.ResponseWriter, r *http.Request, next
 		h.logger.Debug("not coalesced, response is unshared: " + key)
 	}
 	if !leader {
-		entry, err := h.serveAndCache(key, w, r, next)
+		entry, err := h.serveAndCache(page, w, r, next)
 		if entry != nil {
 			misses.unpass(key)
 		}
@@ -279,13 +293,13 @@ func (h *Handler) fetch(key string, w http.ResponseWriter, r *http.Request, next
 			h.logger.Debug("woke "+strconv.Itoa(n)+" waiting: "+key, zap.Bool("shared", entry != nil))
 		}
 	}()
-	entry, err := h.serveAndCache(key, w, r, next)
+	entry, err := h.serveAndCache(page, w, r, next)
 	failed = err != nil
 	return err
 }
 
-// serveAndCache sends r upstream, stores the response if it may be cached and
-// returns it as stored, or nil if it was not.
+// serveAndCache sends r upstream, stores the response for the page at key if
+// it may be cached and returns it as stored, or nil if it was not.
 func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) ([]byte, error) {
 	buf, _ := bufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -330,21 +344,45 @@ func (h *Handler) serveAndCache(key string, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return nil, err
 	}
-	// The backend lets the entry go once it is stale, rather than keeping
-	// it until eviction for a hit that would only refetch it.
-	ttl, expires := h.freshFor(meta.Header, time.Now())
-	if expires && ttl <= 0 {
-		h.logger.Debug("response is already stale: " + key)
-	} else if err := h.backend.put(key, entry.String(), ttl); err != nil {
-		h.logger.Warn("caching failed: "+key, zap.Error(err))
-	} else {
-		h.logger.Debug("put cache: " + key)
-	}
+	h.store(key, r, meta.Header, entry.String())
 
 	// Taken before writeResponse reads the buffer, and never written again,
 	// so waiters can each read it at once
 	stored := entry.Bytes()
 	return stored, h.writeResponse(w, r, entry, false)
+}
+
+// store puts the entry for r of the page at key in the backend, which drops it
+// once stale rather than keeping it for a hit that would only refetch it.
+func (h *Handler) store(key string, r *http.Request, header http.Header, entry string) {
+	ttl, expires := h.freshFor(header, time.Now())
+	if expires && ttl <= 0 {
+		h.logger.Debug("response is already stale: " + key)
+		return
+	}
+	if h.Config.VaryAcceptLanguage && variesOnAcceptLanguage(header) {
+		key = h.variantKeyToFill(key, r, ttl)
+	}
+	if err := h.backend.put(key, entry, ttl); err != nil {
+		h.logger.Warn("caching failed: "+key, zap.Error(err))
+		return
+	}
+	h.logger.Debug("put cache: " + key)
+}
+
+// variantKeyToFill returns the key of r's variant of the page at key, and marks
+// the page as varying if it is not yet. See "Accept-Language" in README.md.
+func (h *Handler) variantKeyToFill(key string, r *http.Request, ttl time.Duration) string {
+	if val, err := h.backend.get(key); err == nil {
+		if generation, ok := markerGeneration(val); ok {
+			return variantKey(key, generation, r)
+		}
+	}
+	marker, generation := varyMarker()
+	if err := h.backend.put(key, marker, ttl); err != nil {
+		h.logger.Warn("marking as varying failed: "+key, zap.Error(err))
+	}
+	return variantKey(key, generation, r)
 }
 
 // newEntry stores the body compressed: an entry takes a fifth of the space,

@@ -38,6 +38,9 @@ and one of `max_cost` or `max_cost_bytes`.
 - **host_alias** `<host> <alias>...` makes requests and purges for each alias
   read, fill and delete the entries of `<host>`, see [Hosts](#hosts). It may be
   given more than once.
+- **vary_accept_language** stores a response that sends
+  `Vary: Accept-Language` once per `Accept-Language`, see
+  [Accept-Language](#accept-language). It is off by default.
 
 Pages are stored gzipped, so what is stored is the compressed size. A client
 that accepts gzip gets the stored bytes as they are, which `encode` passes
@@ -60,6 +63,7 @@ mwcache {
         <address2>
     }
     host_alias <host> <alias1> <alias2>
+    vary_accept_language
 }
 ```
 
@@ -92,6 +96,37 @@ cannot change what it sends, and such a request reads and fills the same entry
 as an anonymous one. A load.php request with a `user` parameter always
 bypasses the cache. Only `/load.php` exactly counts, which is load.php with
 `$wgScriptPath = ""`.
+
+## Accept-Language
+
+Without `vary_accept_language` the cache does not read `Vary`, so the first
+language a page is rendered in is what every reader gets until the entry
+expires. That is right for a wiki that renders anonymous pages in one
+language, which is how Wikimedia runs, with `$wgULSLanguageDetection` off.
+
+With it, a response that names `Accept-Language` in `Vary`, as MediaWiki's
+UniversalLanguageSelector does with `$wgULSLanguageDetection` on, is stored
+once per `Accept-Language`, and the page's own key holds a marker that says
+so. A response that does not name it, such as load.php's, is still stored
+once for every reader. A purge deletes the marker and with it every variant
+of the page. Misses for one page wait on each other only when they send the
+same `Accept-Language`.
+
+The variant is picked by the whole header, with only its letters lowercased
+and the whitespace around `,`, `;` and `=` dropped. Neither q-values nor
+subtags are thrown away: ULS takes the first language of the list, in q
+order, that the wiki supports, and `zh-tw` and `zh-cn` are languages of their
+own, so lists that differ in either can get pages in different languages.
+
+A hit on a varying page reads the backend twice, so `caddy_mwcache_hits_total`
+counts the marker as a hit as well, and a miss on a variant as a hit and a
+miss.
+
+```caddyfile
+mwcache {
+    vary_accept_language
+}
+```
 
 ## Concurrent misses
 
