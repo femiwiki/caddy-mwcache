@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.1.0...v1.2.0) (2026-10-24)
+
+
+### Features
+
+* expire entries at the end of their s-maxage ([#205](https://github.com/femiwiki/caddy-mwcache/issues/205)) ([ce737f0](https://github.com/femiwiki/caddy-mwcache/commit/ce737f0e2e4558aab07a60117f0e81571b1a85e2)), closes [#8](https://github.com/femiwiki/caddy-mwcache/issues/8)
+* store a variant per Accept-Language with vary_accept_language ([#207](https://github.com/femiwiki/caddy-mwcache/issues/207)) ([c9589e3](https://github.com/femiwiki/caddy-mwcache/commit/c9589e320d40c02e08e221bdfd083e737f550bf1)), closes [#188](https://github.com/femiwiki/caddy-mwcache/issues/188)
+
 ## [1.1.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.0.1...v1.1.0) (2026-10-18)
 
 
