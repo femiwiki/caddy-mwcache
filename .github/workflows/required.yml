@@ -21,12 +21,12 @@ jobs:
       id-token: write
 
   long-comments:
-    uses: femiwiki/.github/.github/workflows/long-comments.yml@c7a2145630ac96a51c74a94a7b508c27ab0de134
+    uses: femiwiki/.github/.github/workflows/long-comments.yml@ef93d8c1f53e97717700ca68541f7be6a29f90fd
     permissions:
       contents: read
 
   shared-lint:
-    uses: femiwiki/.github/.github/workflows/shared-lint.yml@c7a2145630ac96a51c74a94a7b508c27ab0de134
+    uses: femiwiki/.github/.github/workflows/shared-lint.yml@ef93d8c1f53e97717700ca68541f7be6a29f90fd
     permissions:
       contents: read
 
