@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/femiwiki/caddy-mwcache/compare/v1.2.0...v1.2.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* report a coalesced waiter whose client left as 499 ([#221](https://github.com/femiwiki/caddy-mwcache/issues/221)) ([d2bb127](https://github.com/femiwiki/caddy-mwcache/commit/d2bb1273bdcd77382191fa7f8dd4d33278f623fa)), closes [#220](https://github.com/femiwiki/caddy-mwcache/issues/220)
+
 ## [1.2.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.1.0...v1.2.0) (2026-10-25)
 
 
