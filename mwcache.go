@@ -269,7 +269,9 @@ func (h *Handler) fetch(page string, w http.ResponseWriter, r *http.Request, nex
 		select {
 		case <-f.done:
 		case <-r.Context().Done():
-			return r.Context().Err()
+			// 499, as reverse_proxy reports a client that left; a bare
+			// context error would reach Caddy as an empty 500
+			return caddyhttp.Error(499, r.Context().Err())
 		}
 		if f.entry != nil {
 			h.logger.Debug("coalesced: " + key)

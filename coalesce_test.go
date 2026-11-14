@@ -282,6 +282,10 @@ func TestWaiterGivesUpWithItsClient(t *testing.T) {
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("waiter returned %v, want %v", err, context.Canceled)
 		}
+		var herr caddyhttp.HandlerError
+		if !errors.As(err, &herr) || herr.StatusCode != 499 {
+			t.Errorf("waiter returned %v, want a 499 handler error", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the waiter kept waiting")
 	}
