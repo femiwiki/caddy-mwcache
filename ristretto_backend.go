@@ -209,9 +209,8 @@ func (m *RistrettoBackend) stats() (backendStats, bool) {
 	if r == nil {
 		return backendStats{}, false
 	}
-	// The evicted cost is read first, as an entry is evicted only after it was
-	// added, so a set between the two reads cannot take the cost used below
-	// zero.
+	// Evicted first: an entry is evicted only after it was added, so a set
+	// between the two reads cannot take the cost used below zero.
 	evicted := r.CostEvicted()
 	added := r.CostAdded()
 	return backendStats{
