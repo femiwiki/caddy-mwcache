@@ -204,6 +204,28 @@ func (m *RistrettoBackend) delete(key string) error {
 	return nil
 }
 
+func (m *RistrettoBackend) stats() (backendStats, bool) {
+	r := m.cache.Metrics
+	if r == nil {
+		return backendStats{}, false
+	}
+	// The evicted cost is read first, as an entry is evicted only after it was
+	// added, so a set between the two reads cannot take the cost used below
+	// zero.
+	evicted := r.CostEvicted()
+	added := r.CostAdded()
+	return backendStats{
+		hits:         r.Hits(),
+		misses:       r.Misses(),
+		keysAdded:    r.KeysAdded(),
+		keysEvicted:  r.KeysEvicted(),
+		setsRejected: r.SetsRejected(),
+		setsDropped:  r.SetsDropped(),
+		costUsed:     added - min(added, evicted),
+		costEvicted:  evicted,
+	}, true
+}
+
 func (m *RistrettoBackend) close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -216,5 +238,6 @@ func (m *RistrettoBackend) close() {
 
 // Interface guards
 var (
-	_ Backend = (*RistrettoBackend)(nil)
+	_ Backend       = (*RistrettoBackend)(nil)
+	_ statsReporter = (*RistrettoBackend)(nil)
 )
