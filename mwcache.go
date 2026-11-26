@@ -41,7 +41,7 @@ var (
 func sharedBackend(c Config) (Backend, func(), error) {
 	backendMu.Lock()
 	defer backendMu.Unlock()
-	if backend != nil && backendName == c.Backend && maps.Equal(backendOptions, c.RistrettoConfig) {
+	if backend != nil && backendName == c.Backend && maps.Equal(backendOptions, c.backendOptions()) {
 		return backend, acquireBackend(), nil
 	}
 	var b Backend
@@ -54,6 +54,12 @@ func sharedBackend(c Config) (Backend, func(), error) {
 			return nil, nil, err
 		}
 		b = rb
+	case "otter":
+		ob, err := newOtterBackend(c.OtterConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+		b = ob
 	default:
 		return nil, nil, fmt.Errorf("unknown backend: %s", c.Backend)
 	}
@@ -65,7 +71,7 @@ func sharedBackend(c Config) (Backend, func(), error) {
 	backend = b
 	backendUsers = new(int)
 	backendName = c.Backend
-	backendOptions = maps.Clone(c.RistrettoConfig)
+	backendOptions = maps.Clone(c.backendOptions())
 	return backend, acquireBackend(), nil
 }
 
@@ -87,6 +93,14 @@ func acquireBackend() func() {
 			}
 		})
 	}
+}
+
+// backendOptions returns the options of the backend c names.
+func (c Config) backendOptions() map[string]string {
+	if c.Backend == "otter" {
+		return c.OtterConfig
+	}
+	return c.RistrettoConfig
 }
 
 type metadata struct {
@@ -130,6 +144,7 @@ type Config struct {
 	Backend         string            `json:"backend,omitempty"`
 	PurgeACL        []string          `json:"purge_acl,omitempty"`
 	RistrettoConfig map[string]string `json:"ristretto_config,omitempty"`
+	OtterConfig     map[string]string `json:"otter_config,omitempty"`
 	Static          *StaticConfig     `json:"static,omitempty"`
 	// HostAliases maps a host to the one whose entries it reads, purges and
 	// fills, such as 127.0.0.1, where MediaWiki sends its PURGEs, to the

@@ -20,13 +20,16 @@ example.com {
 }
 ```
 
-Currently, only "ristretto" backend is supported and used by default. It has no
-default size, so the ristretto block must set `num_counters`, `buffer_items`
-and one of `max_cost` or `max_cost_bytes`.
+Two backends are supported: "ristretto", used by default, and "otter", see
+[otter](#otter). Neither has a default size, so the ristretto block must set
+`num_counters`, `buffer_items` and one of `max_cost` or `max_cost_bytes`, and
+the otter block `max_weight_bytes`.
 
 - **ristretto** is also used as a block to configure backend. Configuration keys
   are snake case versions of fields of [Ristretto's Config struct]. But it is
   limited to only primitive types(bool, int, string, etc).
+- **otter** is a block that picks the otter backend and sets
+  `max_weight_bytes`, see [otter](#otter).
 - **purge_acl** is either a single item or a list of CIDRs or IP addresses that
   are allowed to request to purge cache. It defaults to `127.0.0.1`.
 - **max_cost_bytes** spends ristretto's `MaxCost` in bytes, by costing an entry
@@ -56,6 +59,10 @@ mwcache {
         <additional config key1> <value1>
         <additional config key2> <value2>
     }
+    # or, instead of ristretto
+    otter {
+        max_weight_bytes <value>
+    }
     purge_acl {
         <cidr1>
         <cidr2>
@@ -66,6 +73,33 @@ mwcache {
     vary_accept_language
 }
 ```
+
+## otter
+
+The otter block keeps the cache in [otter] v2 instead of ristretto. Its one
+option, **max_weight_bytes**, is how many bytes the entries may take, counting
+each key and stored response; otter's per-entry overhead comes on top. An
+entry expires at the end of the `s-maxage` it was stored with, and reading it
+does not extend that.
+
+Unlike ristretto, otter applies a write before it returns and never drops one,
+and its admission window keeps a one-pass crawl from displacing the pages
+readers ask for again. The `caddy_mwcache_*` series are the same for both
+backends; under otter `sets_rejected_total` and `sets_dropped_total` stay at
+zero, since a newcomer that loses to an older entry is evicted and counted in
+`keys_evicted_total`.
+
+```caddyfile
+mwcache {
+    otter {
+        max_weight_bytes 67108864
+    }
+}
+```
+
+Saying both an otter and a ristretto block is an error.
+
+[otter]: https://github.com/maypok86/otter
 
 ## Hosts
 

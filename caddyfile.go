@@ -22,6 +22,8 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			switch d.Val() {
 			case "ristretto":
 				// Use default
+			case "otter":
+				c.Backend = "otter"
 			default:
 				return d.ArgErr()
 			}
@@ -42,6 +44,8 @@ func unmarshalOption(d *caddyfile.Dispenser, c *Config) error {
 	case "ristretto":
 		// Use default backend
 		return unmarshalRistretto(d, c)
+	case "otter":
+		return unmarshalOtter(d, c)
 	case "static":
 		s, err := unmarshalStatic(d)
 		if err != nil {
@@ -111,6 +115,25 @@ func unmarshalRistretto(d *caddyfile.Dispenser, c *Config) error {
 	return nil
 }
 
+func unmarshalOtter(d *caddyfile.Dispenser, c *Config) error {
+	c.Backend = "otter"
+	if len(d.RemainingArgs()) != 0 {
+		return d.ArgErr()
+	}
+	c.OtterConfig = map[string]string{}
+	for d.NextBlock(1) {
+		k := d.Val()
+		if !d.NextArg() {
+			return d.ArgErr()
+		}
+		c.OtterConfig[k] = d.Val()
+		if d.NextArg() {
+			return d.ArgErr()
+		}
+	}
+	return nil
+}
+
 // Validate implements caddy.Validator.
 func (h *Handler) Validate() error {
 	if h.Config.Backend == "" {
@@ -119,8 +142,19 @@ func (h *Handler) Validate() error {
 	if h.Config.PurgeACL == nil {
 		return errors.New("no purge acl")
 	}
-	if h.Config.Backend == "ristretto" {
+	switch h.Config.Backend {
+	case "ristretto":
+		if h.Config.OtterConfig != nil {
+			return errTwoBackends
+		}
 		if err := ValidateRistrettoConfig(h.Config.RistrettoConfig); err != nil {
+			return err
+		}
+	case "otter":
+		if h.Config.RistrettoConfig != nil {
+			return errTwoBackends
+		}
+		if err := ValidateOtterConfig(h.Config.OtterConfig); err != nil {
 			return err
 		}
 	}
