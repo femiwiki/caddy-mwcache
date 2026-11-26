@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/caddyserver/caddy/v2"
-	"github.com/dgraph-io/ristretto/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
@@ -67,17 +66,17 @@ func TestCostUsedFollowsACheaperReplacement(t *testing.T) {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
-	before := costUsed(b.cache.Metrics)
+	before := mustStats(t, b).costUsed
 	if err := b.put("/w/a", strings.Repeat("x", 1024), 0); err != nil {
 		t.Fatalf("put: %v", err)
 	}
 	b.wait()
-	after := costUsed(b.cache.Metrics)
+	after := mustStats(t, b).costUsed
 	if after >= before {
 		t.Fatalf("cost used went from %v to %v, want it lower", before, after)
 	}
 
-	c := newRistrettoCollector(func() *ristretto.Metrics { return b.cache.Metrics })
+	c := newStatsCollector(b.stats)
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(c); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -93,7 +92,7 @@ func TestCostUsedFollowsACheaperReplacement(t *testing.T) {
 		if f.GetType() != dto.MetricType_GAUGE {
 			t.Errorf("caddy_mwcache_cost_used is a %v, want a gauge", f.GetType())
 		}
-		if v := f.GetMetric()[0].GetGauge().GetValue(); v != after {
+		if v := f.GetMetric()[0].GetGauge().GetValue(); v != float64(after) {
 			t.Errorf("caddy_mwcache_cost_used is %v, want %v", v, after)
 		}
 		return
@@ -112,10 +111,74 @@ func TestMetricsRegisterIsIdempotent(t *testing.T) {
 	}
 }
 
-// Without a ristretto backend there is nothing to read, and a scrape still has
-// to succeed.
+func mustStats(t *testing.T, r statsReporter) backendStats {
+	t.Helper()
+	s, ok := r.stats()
+	if !ok {
+		t.Fatal("the backend keeps no counts")
+	}
+	return s
+}
+
+// The series come from backendStats, so a backend other than ristretto
+// reports the same names, each with its own value.
+func TestMetricsReportAnyBackend(t *testing.T) {
+	want := backendStats{
+		hits: 1, misses: 2, keysAdded: 3, keysEvicted: 4,
+		setsRejected: 5, setsDropped: 6, costUsed: 7, costEvicted: 8,
+	}
+	c := newStatsCollector(func() (backendStats, bool) { return want, true })
+	reg := prometheus.NewRegistry()
+	if err := reg.Register(c); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	families, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("Gather: %v", err)
+	}
+	got := map[string]float64{}
+	for _, f := range families {
+		if f.GetType() == dto.MetricType_GAUGE {
+			got[f.GetName()] = f.GetMetric()[0].GetGauge().GetValue()
+		} else {
+			got[f.GetName()] = f.GetMetric()[0].GetCounter().GetValue()
+		}
+	}
+	for name, v := range map[string]float64{
+		"caddy_mwcache_hits_total":          1,
+		"caddy_mwcache_misses_total":        2,
+		"caddy_mwcache_keys_added_total":    3,
+		"caddy_mwcache_keys_evicted_total":  4,
+		"caddy_mwcache_sets_rejected_total": 5,
+		"caddy_mwcache_sets_dropped_total":  6,
+		"caddy_mwcache_cost_used":           7,
+		"caddy_mwcache_cost_evicted_total":  8,
+	} {
+		if got[name] != v {
+			t.Errorf("%s is %v, want %v", name, got[name], v)
+		}
+	}
+}
+
+// A ristretto backend with `metrics false` keeps no counts, and a scrape
+// reports nothing rather than zeros.
+func TestRistrettoWithoutMetricsKeepsNoCounts(t *testing.T) {
+	b, err := newRistrettoBackend(map[string]string{
+		"num_counters": "1000", "max_cost": "100", "buffer_items": "64", "metrics": "false",
+	})
+	if err != nil {
+		t.Fatalf("newRistrettoBackend: %v", err)
+	}
+	t.Cleanup(b.close)
+	if _, ok := b.stats(); ok {
+		t.Error("stats reported counts with metrics off")
+	}
+}
+
+// Without a backend that keeps counts there is nothing to read, and a scrape
+// still has to succeed.
 func TestMetricsWithoutBackend(t *testing.T) {
-	c := newRistrettoCollector(func() *ristretto.Metrics { return nil })
+	c := newStatsCollector(func() (backendStats, bool) { return backendStats{}, false })
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(c); err != nil {
 		t.Fatalf("Register: %v", err)

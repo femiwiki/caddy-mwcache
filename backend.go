@@ -22,3 +22,24 @@ type Backend interface {
 	// still return safely afterwards.
 	close()
 }
+
+// backendStats is what a backend reports for the caddy_mwcache_* series. A
+// backend that has no such count leaves it at zero.
+type backendStats struct {
+	hits         uint64
+	misses       uint64
+	keysAdded    uint64
+	keysEvicted  uint64
+	setsRejected uint64
+	setsDropped  uint64
+	// costUsed is the cost of the entries held now, which drops when an entry
+	// is replaced by a cheaper one or deleted, so it is a gauge.
+	costUsed    uint64
+	costEvicted uint64
+}
+
+// statsReporter is a Backend that keeps counts for the metrics. stats reports
+// false while it keeps none, such as a ristretto backend with metrics off.
+type statsReporter interface {
+	stats() (backendStats, bool)
+}
