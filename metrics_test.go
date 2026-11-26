@@ -124,9 +124,11 @@ func mustStats(t *testing.T, r statsReporter) backendStats {
 // reports the same names, each with its own value.
 func TestMetricsReportAnyBackend(t *testing.T) {
 	want := backendStats{
-		hits: 1, misses: 2, keysAdded: 3, keysEvicted: 4,
+		backend: "otter",
+		hits:    1, misses: 2, keysAdded: 3, keysEvicted: 4,
 		setsRejected: 5, setsDropped: 6, costUsed: 7, costEvicted: 8,
 	}
+	// Two containers on different backends are told apart by the label
 	c := newStatsCollector(func() (backendStats, bool) { return want, true })
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(c); err != nil {
@@ -138,10 +140,14 @@ func TestMetricsReportAnyBackend(t *testing.T) {
 	}
 	got := map[string]float64{}
 	for _, f := range families {
+		m := f.GetMetric()[0]
+		if l := m.GetLabel(); len(l) != 1 || l[0].GetName() != "backend" || l[0].GetValue() != "otter" {
+			t.Errorf("%s has labels %v, want backend=otter", f.GetName(), l)
+		}
 		if f.GetType() == dto.MetricType_GAUGE {
-			got[f.GetName()] = f.GetMetric()[0].GetGauge().GetValue()
+			got[f.GetName()] = m.GetGauge().GetValue()
 		} else {
-			got[f.GetName()] = f.GetMetric()[0].GetCounter().GetValue()
+			got[f.GetName()] = m.GetCounter().GetValue()
 		}
 	}
 	for name, v := range map[string]float64{

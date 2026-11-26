@@ -85,9 +85,9 @@ does not extend that.
 Unlike ristretto, otter applies a write before it returns and never drops one,
 and its admission window keeps a one-pass crawl from displacing the pages
 readers ask for again. The `caddy_mwcache_*` series are the same for both
-backends; under otter `sets_rejected_total` and `sets_dropped_total` stay at
-zero, since a newcomer that loses to an older entry is evicted and counted in
-`keys_evicted_total`.
+backends, told apart by their `backend` label; under otter
+`sets_rejected_total` and `sets_dropped_total` stay at zero, since a newcomer
+that loses to an older entry is evicted and counted in `keys_evicted_total`.
 
 ```caddyfile
 mwcache {
