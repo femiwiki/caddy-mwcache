@@ -11,9 +11,8 @@ import (
 // caddy_mwcache_* puts them beside caddy_http_* in the same scrape.
 const metricsNamespace, metricsSubsystem = "caddy", "mwcache"
 
-// The counters the running backend keeps. Each is read at scrape time rather
-// than mirrored, so nothing has to be kept in step with the cache, and the
-// series stay the same whichever backend is running.
+// The counters the running backend keeps, read at scrape time rather than
+// mirrored, under the same names whichever backend is running.
 type statsCollector struct {
 	read  func() (backendStats, bool)
 	descs []*prometheus.Desc
