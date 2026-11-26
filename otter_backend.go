@@ -142,6 +142,7 @@ func (m *OtterBackend) delete(key string) error {
 func (m *OtterBackend) stats() (backendStats, bool) {
 	s := m.counter.Snapshot()
 	return backendStats{
+		backend:     "otter",
 		hits:        s.Hits,
 		misses:      s.Misses,
 		keysAdded:   m.keysAdded.Load(),

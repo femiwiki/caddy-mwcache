@@ -24,7 +24,7 @@ func newStatsCollector(read func() (backendStats, bool)) *statsCollector {
 	c := &statsCollector{read: read}
 	addAs := func(kind prometheus.ValueType, name, help string, value func(backendStats) float64) {
 		c.descs = append(c.descs, prometheus.NewDesc(
-			prometheus.BuildFQName(metricsNamespace, metricsSubsystem, name), help, nil, nil,
+			prometheus.BuildFQName(metricsNamespace, metricsSubsystem, name), help, []string{"backend"}, nil,
 		))
 		c.kinds = append(c.kinds, kind)
 		c.value = append(c.value, value)
@@ -69,7 +69,7 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for i, d := range c.descs {
-		ch <- prometheus.MustNewConstMetric(d, c.kinds[i], c.value[i](s))
+		ch <- prometheus.MustNewConstMetric(d, c.kinds[i], c.value[i](s), s.backend)
 	}
 }
 

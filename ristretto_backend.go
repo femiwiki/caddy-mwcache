@@ -214,6 +214,7 @@ func (m *RistrettoBackend) stats() (backendStats, bool) {
 	evicted := r.CostEvicted()
 	added := r.CostAdded()
 	return backendStats{
+		backend:      "ristretto",
 		hits:         r.Hits(),
 		misses:       r.Misses(),
 		keysAdded:    r.KeysAdded(),

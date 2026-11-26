@@ -173,6 +173,9 @@ func TestOtterStats(t *testing.T) {
 	if s.hits != 2 || s.misses != 1 || s.keysAdded != 1 {
 		t.Errorf("stats are %+v, want 2 hits, 1 miss, 1 key added", s)
 	}
+	if s.backend != "otter" {
+		t.Errorf("backend is %q, want otter", s.backend)
+	}
 	if s.setsRejected != 0 || s.setsDropped != 0 {
 		t.Errorf("otter reported rejected or dropped sets: %+v", s)
 	}

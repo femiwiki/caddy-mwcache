@@ -26,6 +26,8 @@ type Backend interface {
 // backendStats is what a backend reports for the caddy_mwcache_* series. A
 // backend that has no such count leaves it at zero.
 type backendStats struct {
+	// backend names the backend, as the Caddyfile does, for the backend label.
+	backend      string
 	hits         uint64
 	misses       uint64
 	keysAdded    uint64
