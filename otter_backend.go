@@ -16,9 +16,8 @@ import (
 // entries may take, counting each key and stored response.
 const maxWeightBytesKey = "max_weight_bytes"
 
-// OtterBackend is a Backend kept in memory by otter. Unlike ristretto, otter
-// applies a write before it returns and never drops one, so a purge followed
-// by a refill leaves the refilled entry in place.
+// OtterBackend is a Backend kept in memory by otter, which applies a write
+// before it returns and never drops one, unlike ristretto.
 type OtterBackend struct {
 	cache   *otter.Cache[string, otterEntry]
 	counter *stats.Counter
@@ -35,9 +34,8 @@ type otterEntry struct {
 	ttl time.Duration
 }
 
-// noExpiry stands for an entry put without a ttl. otter adds the duration to
-// the current time in nanoseconds, so it has to stay well short of the
-// largest int64.
+// noExpiry stands for an entry put without a ttl. otter adds it to the time
+// in nanoseconds, so it stays well short of the largest int64.
 const noExpiry = 100 * 365 * 24 * time.Hour
 
 type entryExpiry struct{}
@@ -63,9 +61,8 @@ func (entryExpiry) ExpireAfterRead(e otter.Entry[string, otterEntry]) time.Durat
 	return e.ExpiresAfter()
 }
 
-// weigh counts what the entry keeps in memory of its own, the key and the
-// stored response. otter's per-entry overhead comes on top, as it does for
-// ristretto.
+// weigh counts the key and the stored response. otter's per-entry overhead
+// comes on top, as it does for ristretto.
 func weigh(key string, e otterEntry) uint32 {
 	return uint32(min(len(key)+len(e.val), math.MaxUint32))
 }
@@ -149,17 +146,15 @@ func (m *OtterBackend) stats() (backendStats, bool) {
 		misses:      s.Misses,
 		keysAdded:   m.keysAdded.Load(),
 		keysEvicted: s.Evictions,
-		// otter's admission policy does not refuse a write: a newcomer that
-		// loses to the entry it would replace is evicted, and counted there.
-		// Nor does it drop one.
+		// otter never refuses or drops a write: a newcomer that loses to the
+		// entry it would replace is evicted, and counted there.
 		costUsed:    m.cache.WeightedSize(),
 		costEvicted: s.EvictionWeight,
 	}, true
 }
 
-// close drops the entries and stops otter's clean-up goroutine. A put that
-// was already past its check may still land in the closed cache, which
-// nothing reads any more.
+// close drops the entries and stops otter's clean-up goroutine. A put already
+// past its check may still land in the closed cache, which nothing reads.
 func (m *OtterBackend) close() {
 	if m.closed.Swap(true) {
 		return
