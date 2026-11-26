@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/caddyserver/caddy/v2 v2.11.7
 	github.com/dgraph-io/ristretto/v2 v2.4.2
+	github.com/maypok86/otter/v2 v2.4.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
 	github.com/stoewer/go-strcase v1.3.1
