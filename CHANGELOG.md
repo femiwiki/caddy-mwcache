@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.2.0...v1.3.0) (2026-11-26)
+
+
+### Features
+
+* add an otter backend beside ristretto ([#227](https://github.com/femiwiki/caddy-mwcache/issues/227)) ([31d35ac](https://github.com/femiwiki/caddy-mwcache/commit/31d35ac9a0802c36ef1ddbecf8c8baa715200b6a))
+* label cache metrics with the backend ([#229](https://github.com/femiwiki/caddy-mwcache/issues/229)) ([45eb2ac](https://github.com/femiwiki/caddy-mwcache/commit/45eb2acd66fbffd4096c7c8f0e1a4bafa7cc09c4)), closes [#225](https://github.com/femiwiki/caddy-mwcache/issues/225)
+
+
+### Bug Fixes
+
+* report a coalesced waiter whose client left as 499 ([#221](https://github.com/femiwiki/caddy-mwcache/issues/221)) ([d2bb127](https://github.com/femiwiki/caddy-mwcache/commit/d2bb1273bdcd77382191fa7f8dd4d33278f623fa)), closes [#220](https://github.com/femiwiki/caddy-mwcache/issues/220)
+
 ## [1.2.0](https://github.com/femiwiki/caddy-mwcache/compare/v1.1.0...v1.2.0) (2026-10-25)
 
 
